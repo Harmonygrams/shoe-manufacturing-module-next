@@ -9,63 +9,81 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useQuery } from '@tanstack/react-query'
+
 type Unit = {
-  id : string;
-  name : string; 
-  symbol : string;
+  id: string
+  name: string
+  symbol: string
 }
+
 export default function AddMaterialSheet() {
   const [isOpen, setIsOpen] = useState(false)
-  const [ units, setUnits ] = useState<Unit[]>([])
+  const [units, setUnits] = useState<Unit[]>([])
   const [material, setMaterial] = useState({
     name: '',
     description: '',
     openingStock: 0,
-    unitId: 1,
+    unitId: '',
     costPrice: 0,
     reorderPoint: 0,
   })
+
+  // Fetch units using React Query
   const { data, isSuccess, isLoading, error } = useQuery({
-    queryKey : ['UNITS'],
-    queryFn : async () => {
-      const fetchUnits = await fetch('http://localhost:5001/api/v1/units', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
-      if(fetchUnits.ok){
-        const fetchUnitsJson = await fetchUnits.json()
-        return fetchUnitsJson
+    queryKey: ['UNITS'],
+    queryFn: async () => {
+      const response = await fetch('http://localhost:5001/api/v1/units', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (!response.ok) {
+        throw new Error('Failed to fetch units')
       }
-    }, 
+      return response.json()
+    },
   })
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setMaterial(prev => ({ ...prev, [name]: value }))
-  }
 
-  const handleSelectChange = (value: string) => {
-    setMaterial(prev => ({ ...prev, unitId: 2 }))
-  }
-
-  async function handleSubmit (e: React.FormEvent) {
-    e.preventDefault()
-    // Here you would typically send the data to your backend
-    const saveMaterialToDb = await fetch('http://localhost:5001/api/v1/materials', { method : 'POST', body : JSON.stringify(material), headers : { 'Content-Type' : 'Application/json'}})
-    if(saveMaterialToDb.ok){
-        setIsOpen(false)
-        // Reset form after submission
-        setMaterial({
-          name: '',
-          description: '',
-          openingStock : 0,
-          unitId: 0,
-          costPrice: 0,
-          reorderPoint: 0,
-        })
-    }
-  }
+  // Update the units state on successful fetch
   useEffect(() => {
-    if(isSuccess){
+    if (isSuccess && data) {
       setUnits(data)
     }
-  },[isLoading])
+  }, [isSuccess, data])
+
+  // Handle input changes for text and number fields
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setMaterial(prev => ({ ...prev, [name]: name === 'openingStock' || name === 'costPrice' || name === 'reorderPoint' ? parseFloat(value) : value }))
+  }
+
+  // Handle changes for the unit selector
+  const handleSelectChange = (value: string) => {
+    setMaterial(prev => ({ ...prev, unitId: value }))
+  }
+
+  // Submit the material to the API
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const response = await fetch('http://localhost:5001/api/v1/materials', {
+      method: 'POST',
+      body: JSON.stringify(material),
+      headers: { 'Content-Type': 'application/json' },
+    })
+    if (response.ok) {
+      setIsOpen(false)
+      setMaterial({
+        name: '',
+        description: '',
+        openingStock: 0,
+        unitId: '',
+        costPrice: 0,
+        reorderPoint: 0,
+      })
+    } else {
+      console.error('Failed to save material')
+    }
+  }
+
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
@@ -105,7 +123,7 @@ export default function AddMaterialSheet() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="quantity">Opening Quantity</Label>
+              <Label htmlFor="openingStock">Opening Quantity</Label>
               <Input
                 id="openingStock"
                 name="openingStock"
@@ -118,12 +136,16 @@ export default function AddMaterialSheet() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="unit">Unit of Measure</Label>
-              <Select value={(material.unitId).toString()} onValueChange={handleSelectChange}>
+              <Select value={material.unitId} onValueChange={handleSelectChange}>
                 <SelectTrigger id="unit">
                   <SelectValue placeholder="Select unit" />
                 </SelectTrigger>
                 <SelectContent>
-                  {units.map(unit => <SelectItem value="kg" key={unit.id}>{`${unit.name} (${unit.symbol})`} </SelectItem>)}
+                  {units.map(unit => (
+                    <SelectItem value={unit.id} key={unit.id}>
+                      {`${unit.name} (${unit.symbol})`}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -145,16 +167,16 @@ export default function AddMaterialSheet() {
             <Input
               id="reorderPoint"
               name="reorderPoint"
-              type=""
+              type="number"
               value={material.reorderPoint}
               onChange={handleInputChange}
               placeholder="Enter reorder point"
             />
           </div>
           <SheetFooter>
-          <div className="fixed bottom-0 right-0 w-full sm:max-w-[540px] bg-background border-t p-4 flex justify-end space-x-2">
-            <Button type="submit">Save Material</Button>
-          </div>
+            <div className="fixed bottom-0 right-0 w-full sm:max-w-[540px] bg-background border-t p-4 flex justify-end space-x-2">
+              <Button type="submit">Save Material</Button>
+            </div>
           </SheetFooter>
         </form>
       </SheetContent>

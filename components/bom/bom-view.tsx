@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Plus, Search, Filter, FileDown, Copy, AlertTriangle, Check, Info, Edit, Trash2, Eye } from 'lucide-react'
+import { FileDown, Copy, AlertTriangle, Check, Info, Edit, Trash2, Eye } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
 

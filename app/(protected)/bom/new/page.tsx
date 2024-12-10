@@ -53,7 +53,7 @@ export default function AddBOMPage() {
     queryKey : ['RAW_MATERIAL'],
     queryFn : async () => {
       const fetchMaterials = await fetch('http://localhost:5001/api/v1/materials', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
-      if(fetchMaterials.ok){
+      if(fetchMaterials.ok){ 
         const fetchMaterialsJson = await fetchMaterials.json()
         return fetchMaterialsJson
       }
@@ -79,7 +79,6 @@ export default function AddBOMPage() {
   function getMaterial (materialId: string): Material | undefined {
     return materials.find(m => m.id === materialId)
   }
-
   function calculateTotalMaterialCost(materialId: string, quantity: number): number {
     const material = getMaterial(materialId)
     if (material) {
@@ -87,7 +86,6 @@ export default function AddBOMPage() {
     }
     return 0
   }
-
   function getTotalCost (): number {
     return bomList.reduce((total, item) => {
       return total + calculateTotalMaterialCost(item.materialId, item.quantity)

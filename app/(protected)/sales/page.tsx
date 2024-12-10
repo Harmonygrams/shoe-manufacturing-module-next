@@ -10,7 +10,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { CalendarIcon, ChevronLeft, ChevronRight, Edit, Eye, Trash2 } from 'lucide-react'
 import { format } from "date-fns"
-
+import Link from 'next/link'
 // Mock data for demonstration
 const orders = [
   { id: 'ORD001', customer: 'Acme Corp', orderDate: '2023-06-01', status: 'Completed', quantity: 100, deliveryDate: '2023-06-15' },
@@ -52,7 +52,12 @@ export default function OrderManagement() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Orders</h1>
-        <Button className="bg-primary hover:bg-primary/90">Add New Order</Button>
+        
+          <Button className="bg-primary hover:bg-primary/90" asChild>
+            <Link href='/sales/new'>
+              Add New Order
+            </Link>
+          </Button>
       </div>
 
       <div className="mb-6 flex flex-col sm:flex-row gap-4">

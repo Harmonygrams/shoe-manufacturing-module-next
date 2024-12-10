@@ -1,76 +1,103 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Plus, Search, Pencil, Trash2, Eye } from 'lucide-react'
+import { useState } from 'react'
+import { Plus } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
+// import { useToast } from "@/components/ui/use-toast"
+import { useRouter } from 'next/navigation'
+import { SelectGroup, SelectLabel } from '@radix-ui/react-select'
 
 type ProductSize = {
-  name: string;
+  sizeId: number | string;
+  quantity: number;
   cost: number;
-  sellingPrice: number;
 }
 
 type Product = {
-  id: number;
   name: string;
   sku: string;
-  unit: string;
+  unitId: number | string;
   description: string;
   sizes: ProductSize[];
 }
 
-const units = ['pcs', 'kg', 'g', 'l', 'ml', 'm', 'cm']
+type Unit = {
+  id: number;
+  name: string;
+}
+
+type Size = {
+  id: number;
+  name: string;
+}
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
-  const [currentPage, setCurrentPage] = useState(1)
   const [newProduct, setNewProduct] = useState<Product>({
-    id: 0,
     name: '',
     sku: '',
-    unit: 'pcs',
+    unitId: '',
     description: '',
     sizes: []
   })
   const [newSize, setNewSize] = useState<ProductSize>({
-    name: '',
-    cost: 0,
-    sellingPrice: 0
+    sizeId: '',
+    quantity: 0,
+    cost: 0
   })
 
-  const { data, isSuccess, isLoading, error } = useQuery({
-    queryKey: ['PRODUCTS'],
+  // const { toast } = useToast()
+  const router = useRouter()
+
+  const { data: units = [] } = useQuery<Unit[]>({
+    queryKey: ['UNITS'],
     queryFn: async () => {
-      const fetchProducts = await fetch('http://localhost:5001/api/v1/products', { method: 'GET', headers: { 'Content-Type': 'Application/json' } })
-      if (fetchProducts.ok) {
-        const fetchProductsJson = await fetchProducts.json()
-        return fetchProductsJson
-      }
+      const response = await fetch('http://localhost:5001/api/v1/units')
+      if (!response.ok) throw new Error('Failed to fetch units')
+      return response.json()
     }
   })
 
-  const productsPerPage = 5
-  const indexOfLastProduct = currentPage * productsPerPage
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage
-  const currentProducts = products
-    .filter(product => product.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    .slice(indexOfFirstProduct, indexOfLastProduct)
-
-  const totalPages = Math.ceil(products.length / productsPerPage)
-
-  useEffect(() => {
-    if (isSuccess) {
-      setProducts(data)
+  const { data: sizes = [] } = useQuery<Size[]>({
+    queryKey: ['SIZES'],
+    queryFn: async () => {
+      const response = await fetch('http://localhost:5001/api/v1/sizes')
+      if (!response.ok) throw new Error('Failed to fetch sizes')
+      return response.json()
     }
-  }, [isLoading, isSuccess, data])
+  })
+
+  const saveProductMutation = useMutation({
+    mutationFn: async (product: Product) => {
+      const response = await fetch('http://localhost:5001/api/v1/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(product)
+      })
+      if (!response.ok) throw new Error('Failed to save product')
+      return response.json()
+    },
+    onSuccess: () => {
+      // toast({
+      //   title: "Product saved successfully",
+      //   description: "You will be redirected to the products page.",
+      // })
+      setTimeout(() => router.push('/products'), 2000)
+    },
+    onError: (error) => {
+      console.log(error);
+      // toast({
+      //   title: "Failed to save product",
+      //   description: error.message,
+      //   variant: "destructive"
+      // })
+    }
+  })
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -78,47 +105,31 @@ export default function ProductsPage() {
   }
 
   const handleUnitChange = (value: string) => {
-    setNewProduct(prev => ({ ...prev, unit: value }))
+    setNewProduct(prev => ({ ...prev, unitId: parseInt(value) }))
   }
 
   const handleSizeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setNewSize(prev => ({ ...prev, [name]: name === 'name' ? value : parseFloat(value) }))
+    setNewSize(prev => ({ ...prev, [name]: name === 'sizeId' ? parseInt(value) : parseFloat(value) }))
   }
 
   const addSize = () => {
-    if (newSize.name && newSize.cost > 0 && newSize.sellingPrice > 0) {
+    if (newSize.sizeId && newSize.quantity > 0 && newSize.cost > 0) {
       setNewProduct(prev => ({
         ...prev,
         sizes: [...prev.sizes, newSize]
       }))
-      setNewSize({ name: '', cost: 0, sellingPrice: 0 })
+      setNewSize({ sizeId: 0, quantity: 0, cost: 0 })
     }
   }
 
   const saveProduct = () => {
-    if (newProduct.name && newProduct.sku && newProduct.unit) {
-      setProducts(prev => [...prev, { ...newProduct, id: prev.length + 1 }])
-      setNewProduct({
-        id: 0,
-        name: '',
-        sku: '',
-        unit: 'pcs',
-        description: '',
-        sizes: []
-      })
-    }
+    saveProductMutation.mutate(newProduct)
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Products</h1>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Add New Product</CardTitle>
-        </CardHeader>
-        <CardContent>
+    <div className="container mx-auto px-4 py-8 mb-20">
+      <h1 className="text-3xl font-bold mb-6">Add New Product</h1>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <Label htmlFor="name">Product Name</Label>
@@ -130,14 +141,16 @@ export default function ProductsPage() {
             </div>
             <div>
               <Label htmlFor="unit">Unit</Label>
-              <Select value={newProduct.unit} onValueChange={handleUnitChange}>
+              <Select value={newProduct.unitId.toString()} onValueChange={handleUnitChange}>
                 <SelectTrigger id="unit">
-                  <SelectValue placeholder="Select unit" />
+                  <SelectValue placeholder="Select unit"/>
                 </SelectTrigger>
                 <SelectContent>
-                  {units.map(unit => (
-                    <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {units.map(unit => (
+                      <SelectItem key={unit.id} value={unit.id.toString()}>{unit.name}</SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
@@ -153,33 +166,44 @@ export default function ProductsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Size</TableHead>
+                    <TableHead>Quantity</TableHead>
                     <TableHead>Cost</TableHead>
-                    <TableHead>Selling Price</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {newProduct.sizes.map((size, index) => (
                     <TableRow key={index}>
-                      <TableCell>{size.name}</TableCell>
+                      <TableCell>{sizes.find(s => s.id === size.sizeId)?.name}</TableCell>
+                      <TableCell>{size.quantity}</TableCell>
                       <TableCell>${size.cost.toFixed(2)}</TableCell>
-                      <TableCell>${size.sellingPrice.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-              <Input placeholder="Size Name" name="name" value={newSize.name} onChange={handleSizeInputChange} />
+              <Select value={newSize.sizeId.toString()} onValueChange={(value) => handleSizeInputChange({ target: { name: 'sizeId', value } } as React.ChangeEvent<HTMLInputElement>)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select size" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sizes.map(size => (
+                    <SelectItem key={size.id} value={size.id.toString()}>{size.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input type="number" placeholder="Quantity" name="quantity" value={newSize.quantity || ''} onChange={handleSizeInputChange} />
               <Input type="number" placeholder="Cost" name="cost" value={newSize.cost || ''} onChange={handleSizeInputChange} />
-              <Input type="number" placeholder="Selling Price" name="sellingPrice" value={newSize.sellingPrice || ''} onChange={handleSizeInputChange} />
             </div>
             <Button onClick={addSize} className="mb-4 rounded-full w-8 h-8 p-0" variant="outline">
               <Plus className="h-4 w-4" />
             </Button>
           </div>
-          <Button onClick={saveProduct}>Save Product</Button>
-        </CardContent>
-      </Card>
+          <div className='flex justify-end mt-10'>
+            <Button onClick={saveProduct} className="" disabled={saveProductMutation.isLoading}>
+              {saveProductMutation.isLoading ? "Saving..." : "Save Product"}
+            </Button>
+          </div>
     </div>
   )
 }

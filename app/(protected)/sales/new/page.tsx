@@ -1,6 +1,5 @@
 'use client'
-
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, Minus, Search, X } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,41 +10,170 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
-
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
+import Joi from 'joi'
 // Mock data for customers and products
-const customers = [
-  { id: '1', name: 'John Doe' },
-  { id: '2', name: 'Jane Smith' },
-  { id: '3', name: 'Bob Johnson' },
-]
+const saveSalesOrderSchema = Joi.object({
+  customerId : Joi.number().required(),
+  transactionDate : Joi.date().required(),
+  status : Joi.string().required(),
+  products : Joi.array().items({
+    productId : Joi.string().required(),
+    productSizes : Joi.array().items({
+      sizeId : Joi.string().required(),
+      colorId : Joi.number(),
+      quantity : Joi.number().min(1).required(),
+      cost : Joi.number().min(0).required()
+    })
+  })
+})
+type OrderSize = {
+  sizeId : string; 
+  colorId? : number; 
+  quantity : number; 
+  cost : number;
+}
+type OrderProduct2 = {
+  productId : string, 
+  productSizes : OrderSize[]
 
+}
+type Order = {
+  customerId : string, 
+  transactionDate : Date | undefined, 
+  status : string,
+  products : OrderProduct2[]
+}
+type Customer = {
+  id : string;
+  first_name : string; 
+  last_name : string; 
+}
 const products = [
-  { id: '1', name: 'Running Shoe', sizes: ['7', '8', '9', '10'], colors: ['Red', 'Blue', 'Black'], cost: 59.99 },
-  { id: '2', name: 'Casual Sneaker', sizes: ['6', '7', '8', '9'], colors: ['White', 'Gray', 'Navy'], cost: 49.99 },
-  { id: '3', name: 'Dress Shoe', sizes: ['8', '9', '10', '11'], colors: ['Brown', 'Black'], cost: 79.99 },
+  { id: '3', name: 'Dress Shoe', sizes: [{name : '35', id: '1', cost: 78.94}, {name : '36', id: '2', cost: 80.76}],  },
 ]
+type Product = {
+  id : string; 
+  name : string; 
+  sizes : Size[];
+  bom : RawMaterial[];
+}
+const colors:Color[] = [{name : 'Brown', id : '1'}, {name : 'Red', id : '2'}, {name : 'White', id : '3'}]
 
-interface ProductItem {
-  productId: string
-  size: string
-  color: string
-  quantity: number
-  cost: number
+type Size = { 
+  id : string; 
+  name : string; 
+  cost : number;
+}
+type Color = { 
+  id : string; 
+  name : string; 
 }
 
-interface OrderProduct {
+type ProductItem = {
+  id: string
+  size: Size,
+  color: Color
+  quantity: number, 
+  cost : number;
+}
+
+type OrderProduct = {
   id: string
   name: string
   items: ProductItem[]
 }
-
+type RawMaterial = {
+  productId : string;
+  id : string;
+  name : string; 
+  quantityNeeded : number; 
+  quantityAvailable : number; 
+}
 export default function SalesOrderPage() {
-  const [customer, setCustomer] = useState('')
-  const [orderDate, setOrderDate] = useState<Date>()
+  const [isLoadingBom, setIsLoadingBom] = useState<boolean>(false); 
+  const [customer, setCustomer] = useState<string>('')
+  const [orderDate, setOrderDate] = useState<Date | undefined>(new Date())
+  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([])
   const [status, setStatus] = useState('pending')
   const [productSearch, setProductSearch] = useState('')
   const [selectedProducts, setSelectedProducts] = useState<OrderProduct[]>([])
-
+  const [order,  setOrder ] = useState<Order>()
+  // Fetch customers from db 
+  const { data : customers = []} = useQuery<Customer[]>({
+    queryKey : ['CUSTOMERS'], 
+    queryFn : async () => {
+      const fetchCustomers = await fetch('http://localhost:5001/api/v1/customers', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+      if(fetchCustomers.ok){
+        const fetchCustomersJson = await fetchCustomers.json();
+        return fetchCustomersJson
+      }
+    }
+  })
+  const [{data : products = []}, { data : colors = []}] = useQueries({
+    queries : [
+      {
+        queryKey : ['PRODUCTS'],
+        queryFn : async () => {
+          const fetchProducts = await fetch('http://localhost:5001/api/v1/products', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+          if(fetchProducts.ok){
+            const fetchProductsJson = await fetchProducts.json() as Product[]
+            return fetchProductsJson
+          }
+        }
+      }, 
+      {
+        queryKey : ['COLORS'], 
+        queryFn : async () => {
+          const fetchColors = await fetch('http://localhost:5001/api/v1/colors', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+          if(fetchColors.ok){
+            const fetchColorsJson = await fetchColors.json() as Color[]
+            return fetchColorsJson
+          }
+        }
+      }
+    ]
+  })
+  const saveOrderToDb = useMutation({
+    mutationFn : async (payload : string) => {
+      const addToDb = await fetch('http://localhost:5001/api/v1/sales', { method : 'POST', body: payload, headers : { 'Content-Type' : 'Application/json'}})
+      if(addToDb.ok){
+        const addToDbJson = await addToDb.json()
+        return addToDbJson
+      }
+    }
+  })
+  async function handleSaveSalesOrder () {
+    const products = selectedProducts.map(product => {
+      const productSizes =  product.items.map(productItem => {
+        const colorId = Number(productItem.color);
+        return {
+          sizeId : productItem.size.id.toString(), 
+          colorId : colorId,
+          quantity : productItem.quantity, 
+          cost : productItem.cost
+        }
+      })
+      return {
+        productId : product.id.toString(),
+        productSizes
+      }
+    })    
+    setOrder({
+      customerId : customer, 
+      status : status,
+      transactionDate : orderDate,
+      products
+    })
+    if(order){
+      console.log(order)
+      saveOrderToDb.mutate(JSON.stringify(order), {
+        // onSuccess : () => {
+        //   window.location.href = "/sales-orders"
+        // }
+      }); 
+    }
+  }
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(productSearch.toLowerCase())
   )
@@ -57,11 +185,11 @@ export default function SalesOrderPage() {
         id: product.id,
         name: product.name,
         items: [{
-          productId: product.id,
+          id: product.id,
           size: product.sizes[0],
-          color: product.colors[0],
+          color: colors[0],
           quantity: 1,
-          cost: product.cost
+          cost : product.sizes[0].cost
         }]
       }])
     }
@@ -73,19 +201,35 @@ export default function SalesOrderPage() {
     const product = products.find(p => p.id === newSelectedProducts[productIndex].id)
     if (product) {
       newSelectedProducts[productIndex].items.push({
-        productId: product.id,
+        id: product.id,
         size: product.sizes[0],
-        color: product.colors[0],
+        color: colors[0],
         quantity: 1,
-        cost: product.cost
+        cost : product.sizes[0].cost
       })
       setSelectedProducts(newSelectedProducts)
     }
   }
-
   const updateProductItem = (productIndex: number, itemIndex: number, field: keyof ProductItem, value: string | number) => {
     const newSelectedProducts = [...selectedProducts]
-    newSelectedProducts[productIndex].items[itemIndex][field] = value as never
+    const currentItem = newSelectedProducts[productIndex].items[itemIndex]
+    
+    if (field === 'size') {
+      // Find the product
+      const product = products.find(p => p.id === currentItem.id)
+      if (product) {
+        // Find the selected size object
+        const selectedSize = product.sizes.find(size => size.id === value)
+        if (selectedSize) {
+          // Update both size and cost
+          currentItem.size = selectedSize
+          currentItem.cost = selectedSize.cost
+        }
+      }
+    } else {
+      // Handle other field updates normally
+      currentItem[field] = value as never
+    }
     setSelectedProducts(newSelectedProducts)
   }
 
@@ -97,11 +241,12 @@ export default function SalesOrderPage() {
     }
     setSelectedProducts(newSelectedProducts)
   }
-
   const calculateSubtotal = (items: ProductItem[]) => {
-    return items.reduce((sum, item) => sum + item.quantity * item.cost, 0)
+    return items.reduce((sum, item) => sum + item.quantity * item.size.cost, 0)
   }
-
+  const calculateSubpairs = ((items : ProductItem[]) => {
+    return items.reduce((sum, item) => sum + item.quantity, 0)
+  })
   const calculateTotal = () => {
     return selectedProducts.reduce((sum, product) => sum + calculateSubtotal(product.items), 0)
   }
@@ -109,7 +254,38 @@ export default function SalesOrderPage() {
   const calculateTotalPairs = () => {
     return selectedProducts.reduce((sum, product) => sum + product.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0)
   }
+  // useEffect(() => {
+  //   // Get all bills of materials for selected products
+  //   const allMaterials = selectedProducts
+  //     .map(selectedProduct => {
+  //       const product = products.find(p => p.id === selectedProduct.id);
+  //       return product?.bom || [];
+  //     })
+  //     .flat();
+  //   console.log('here are all the materials ', allMaterials)
+  //   // Create a map to combine duplicates and sum quantities
+  //   const materialsMap = allMaterials.reduce((acc, material) => {
+  //     if (!material) return acc;
+      
+  //     if (acc.has(material.id)) {
+  //       const existingMaterial = acc.get(material.id);
+  //       acc.set(material.id, {
+  //         ...existingMaterial,
+  //         quantityNeeded: existingMaterial.quantityNeeded + material.quantityNeeded
+  //       });
+  //     } else {
+  //       acc.set(material.id, { ...material });
+  //     }
+      
+  //     return acc;
+  //   }, new Map());
 
+  //   // Convert map back to array
+  //   const updatedMaterials = Array.from(materialsMap.values());
+  //   //Update quantites 
+    
+  //   setRawMaterials(updatedMaterials);
+  // }, [selectedProducts ]);
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">Create Sales Order</h1>
@@ -123,7 +299,7 @@ export default function SalesOrderPage() {
             </SelectTrigger>
             <SelectContent>
               {customers.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                <SelectItem key={c.id} value={c.id}>{`${c.first_name} ${c.last_name || ''}`}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -167,13 +343,13 @@ export default function SalesOrderPage() {
       </div>
 
       <div className="mb-6">
-        <Label htmlFor="productSearch" className="text-lg font-semibold mb-2 block">Search and Add Products</Label>
+        <Label htmlFor="productSearch" className="text-lg font-semibold mb-2 block">Search for item no.</Label>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <Input
             id="productSearch"
             type="text"
-            placeholder="Type to search for products..."
+            placeholder="Type to search for item no..."
             value={productSearch}
             onChange={(e) => setProductSearch(e.target.value)}
             className="pl-10 py-2 text-lg"
@@ -217,30 +393,30 @@ export default function SalesOrderPage() {
                     <TableRow key={itemIndex}>
                       <TableCell>
                         <Select
-                          value={item.size}
+                          value={item.size.id}
                           onValueChange={(value) => updateProductItem(productIndex, itemIndex, 'size', value)}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {products.find(p => p.id === item.productId)?.sizes.map((size) => (
-                              <SelectItem key={size} value={size}>{size}</SelectItem>
+                            {products.find(p => p.id === item.id)?.sizes.map((size) => (
+                              <SelectItem key={size.id} value={size.id}>{size.name}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </TableCell>
                       <TableCell>
                         <Select
-                          value={item.color}
+                          value={item.color.id}
                           onValueChange={(value) => updateProductItem(productIndex, itemIndex, 'color', value)}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {products.find(p => p.id === item.productId)?.colors.map((color) => (
-                              <SelectItem key={color} value={color}>{color}</SelectItem>
+                            {colors.map((color) => (
+                              <SelectItem key={color.id} value={color.id}>{color.name}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -253,8 +429,8 @@ export default function SalesOrderPage() {
                           min={1}
                         />
                       </TableCell>
-                      <TableCell>${item.cost.toFixed(2)}</TableCell>
-                      <TableCell>${(item.quantity * item.cost).toFixed(2)}</TableCell>
+                      <TableCell>${item.size.cost}</TableCell>
+                      <TableCell>${(item.quantity * item.size.cost).toFixed(2)}</TableCell>
                       <TableCell>
                         <Button variant="ghost" size="sm" onClick={() => removeProductItem(productIndex, itemIndex)}>
                           <X className="h-4 w-4" />
@@ -271,13 +447,14 @@ export default function SalesOrderPage() {
               </Button>
               <div>
                 <span className="font-semibold">Subtotal:</span> ${calculateSubtotal(product.items).toFixed(2)}
+                <span className="font-semibold">subPair:</span> ${calculateSubpairs(product.items).toFixed(2)}
               </div>
             </div>
           </CardContent>
         </Card>
       ))}
 
-      <Card className="mt-8">
+      {/* <Card className="mt-8">
         <CardHeader>
           <CardTitle>Bill of Materials Summary</CardTitle>
         </CardHeader>
@@ -292,38 +469,35 @@ export default function SalesOrderPage() {
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
+              {isLoadingBom ? <div>Loading bill of materials</div> : 
               <TableBody>
-                {[
-                  { name: 'Leather', needed: 100, available: 150 },
-                  { name: 'Rubber Soles', needed: 50, available: 40 },
-                  { name: 'Laces', needed: 100, available: 200 },
-                  { name: 'Insoles', needed: 50, available: 30 },
-                ].map((material) => (
+                {rawMaterials.map((material) => (
                   <TableRow key={material.name}>
                     <TableCell>{material.name}</TableCell>
-                    <TableCell>{material.needed}</TableCell>
-                    <TableCell>{material.available}</TableCell>
+                    <TableCell>{material.quantityNeeded}</TableCell>
+                    <TableCell>{material.quantityAvailable}</TableCell>
                     <TableCell>
-                      {material.available >= material.needed ? (
-                        <span className="text-green-600">Surplus: {material.available - material.needed}</span>
+                      {material.quantityAvailable >= material.quantityNeeded ? (
+                        <span className="text-green-600">Surplus: {material.quantityAvailable - material.quantityNeeded}</span>
                       ) : (
-                        <span className="text-red-600">Needed: {material.needed - material.available}</span>
+                        <span className="text-red-600">Needed: {material.quantityNeeded - material.quantityAvailable}</span>
                       )}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
+              }
             </Table>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
       <div className="mt-6 flex flex-col md:flex-row justify-between items-start md:items-center sticky bottom-0 bg-background p-4 border-t">
   <div className="w-full md:w-auto order-1 md:order-1 bg-muted p-4 rounded-lg mb-4 md:mb-0">
     <p className="text-lg"><span className="font-semibold">Total Pairs:</span> {calculateTotalPairs()}</p>
     <p className="text-2xl font-bold"><span>Total Amount:</span> ${calculateTotal().toFixed(2)}</p>
   </div>
   <div className="w-full md:w-auto order-2 md:order-2">
-    <Button className="w-full md:w-auto">Save Order</Button>
+    <Button className="w-full md:w-auto" onClick={handleSaveSalesOrder}>Save Order</Button>
   </div>
 </div>
     </div>

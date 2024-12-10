@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
 import Link from 'next/link'
 import { BomView } from '@/components/bom/bom-view'
 import { dateFormater } from '@/utils/date-formater'
+import { useQuery } from '@tanstack/react-query'
 
 type BomListMaterial = {
   id : string; 
@@ -31,35 +31,31 @@ type Bom = {
 }
 
 export default function BOMPage() {
-  const [bomItems, setBom] = useState<Bom[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [selectedBOM, setSelectedBOM] = useState<string | null>(null)
-
+  const { data : bomItems = []} = useQuery<Bom[]>({
+    queryKey : ['KEY'],
+    queryFn : async () => {
+      const fetchBom = await fetch("http://localhost:5001/api/v1/bom", { method : "GET", headers : { 'Content-Type' : 'Application/json'}})
+      if(fetchBom.ok){
+        const fetchBomJson = await fetchBom.json()
+        return fetchBomJson
+      }
+    }
+  })
   // const filteredBOMs = bomItems.filter(bom => 
   //   (bom.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
   //    bom.sku.toLowerCase().includes(searchTerm.toLowerCase())) &&
   //   (statusFilter === '' || (statusFilter === 'active' && bom.sufficientMaterials) || (statusFilter === 'inactive' && !bom.sufficientMaterials))
   // )
-
   const handleCloseBOMDetail = () => {
     setSelectedBOM(null)
   }
-  async function fetchBom () { 
-    const fetchBom = await fetch("http://localhost:5001/api/v1/bom", { method : "GET", headers : { 'Content-Type' : 'Application/json'}})
-    if(fetchBom.ok){
-      const fetchBomJson = await fetchBom.json();
-      setBom(fetchBomJson)
-    }
-  }
-  useEffect(() => {
-    fetchBom()
-  }, [])
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Bill of Materials (BOM)</h1>
-      
+      <h1 className="text-3xl font-bold mb-6">Bill of Materials (BOM)</h1>   
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 space-y-4 md:space-y-0 md:space-x-4">
         <div className="flex-grow w-full md:w-auto">
           <div className="relative">

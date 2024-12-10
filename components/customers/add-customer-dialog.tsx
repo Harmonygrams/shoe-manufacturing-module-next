@@ -49,12 +49,12 @@ export default function CustomerDetailsDialog() {
             <Label htmlFor="customerType">Customer Type</Label>
             <RadioGroup id="customerType" value={customerData.customerType} onValueChange={(type) => setCustomerData(prev => ({...prev, customerType : type}))} className="flex" name="customerType">
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="Individual" id="Individual" />
-                <Label htmlFor="Individual">Individual</Label>
+                <RadioGroupItem value="individual" id="individual" />
+                <Label htmlFor="bndividual">Individual</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="Business" id="Business" />
-                <Label htmlFor="Business">Business</Label>
+                <RadioGroupItem value="business" id="business" />
+                <Label htmlFor="business">Business</Label>
               </div>
             </RadioGroup>
           </div>
