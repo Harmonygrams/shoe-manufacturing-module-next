@@ -41,7 +41,8 @@ export default function BOMPage() {
       const fetchBom = await fetch("http://localhost:5001/api/v1/bom", { method : "GET", headers : { 'Content-Type' : 'Application/json'}})
       if(fetchBom.ok){
         const fetchBomJson = await fetchBom.json()
-        return fetchBomJson
+        console.log(fetchBomJson)
+        return fetchBomJson.bomItems;
       }
     }
   })
@@ -76,9 +77,7 @@ export default function BOMPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="jg">All Categories</SelectItem>
-              <SelectItem value="Electronics">Electronics</SelectItem>
-              <SelectItem value="Mechanics">Mechanics</SelectItem>
-              <SelectItem value="Hardware">Hardware</SelectItem>
+              <SelectItem value="Electronics">Shoes</SelectItem>
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
