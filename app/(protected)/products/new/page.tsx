@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useQuery, useMutation } from '@tanstack/react-query'
+import { formatCurrency } from '@/helpers/currencyFormat'
 // import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from 'next/navigation'
 import { SelectGroup, SelectLabel } from '@radix-ui/react-select'
@@ -175,7 +176,7 @@ export default function ProductsPage() {
                     <TableRow key={index}>
                       <TableCell>{sizes.find(s => s.id === size.sizeId)?.name}</TableCell>
                       <TableCell>{size.quantity}</TableCell>
-                      <TableCell>${size.cost.toFixed(2)}</TableCell>
+                      <TableCell>{formatCurrency(size.cost)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

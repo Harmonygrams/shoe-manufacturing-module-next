@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { BomView } from '@/components/bom/bom-view'
 import { dateFormater } from '@/utils/date-formater'
 import { useQuery } from '@tanstack/react-query'
+import { formatCurrency } from '@/helpers/currencyFormat'
 
 type BomListMaterial = {
   id : string; 
@@ -21,6 +22,7 @@ type BomListMaterial = {
 }
 type Bom = {
   id : string; 
+  productId : string;
   productName : string; 
   quantity : string; 
   sku : string; 
@@ -36,7 +38,7 @@ export default function BOMPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [selectedBOM, setSelectedBOM] = useState<string | null>(null)
   const { data : bomItems = []} = useQuery<Bom[]>({
-    queryKey : ['KEY'],
+    queryKey : ['BOM'],
     queryFn : async () => {
       const fetchBom = await fetch("http://localhost:5001/api/v1/bom", { method : "GET", headers : { 'Content-Type' : 'Application/json'}})
       if(fetchBom.ok){
@@ -117,7 +119,7 @@ export default function BOMPage() {
                 <TableCell>{bom.productName}</TableCell>
                 <TableCell>{bom.sku}</TableCell>
                 <TableCell>{bom.bomList.length} materials</TableCell>
-                <TableCell>${bom.totalCost}</TableCell>
+                <TableCell>{formatCurrency(bom.totalCost)}</TableCell>
                 <TableCell>
                     <Badge variant="outline" className="bg-green-100 text-green-800">
                       <Check className="mr-1 h-3 w-3" /> Active
@@ -135,7 +137,7 @@ export default function BOMPage() {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="outline" size="icon" onClick={() => setSelectedBOM(bom.id)}>
+                          <Button variant="outline" size="icon" onClick={() => setSelectedBOM(bom.productId)}>
                             <Eye className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
@@ -174,7 +176,7 @@ export default function BOMPage() {
             ))}
           </TableBody>
         </Table>
-        <BomView selectedBOM={selectedBOM} handleCloseBOMDetail={handleCloseBOMDetail} props={{ bomId : selectedBOM}}/>
+        <BomView selectedBOM={selectedBOM} handleCloseBOMDetail={handleCloseBOMDetail} props={{ productId : selectedBOM}}/>
       </div>
     </div>
   )

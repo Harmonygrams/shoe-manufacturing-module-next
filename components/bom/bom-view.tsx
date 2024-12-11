@@ -4,17 +4,19 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { FileDown, Copy, AlertTriangle, Check, Info, Edit, Trash2, Eye } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { formatCurrency } from "@/helpers/currencyFormat"
 
 type BomListItem = {
     id : string; 
-    materialName : string; 
-    quantity : number; 
-    unit : string; 
+    name : string; 
+    quantityNeed : number; 
+    unitName : string; 
     cost : number;
 }
 type Props = {
     props : {
-        bomId : string | null;
+        productId : string | null;
     }, 
     selectedBOM : string | null; 
     handleCloseBOMDetail : () => void;
@@ -27,38 +29,42 @@ type BomItem = {
     bomList : BomListItem[];
 }
 export function BomView ({props, selectedBOM, handleCloseBOMDetail} : Props) {
-    const [bomItem, setBomItem] = useState<BomItem>({
-        productName : '', 
-        sku : '', 
-        description : '', 
-        bomList : []
-    })
-    async function fetchBom () {
-        const fetchBomItem = await fetch(`http://localhost:5001/api/v1/bom/${props.bomId}`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
-        if(fetchBomItem){
-            const fetchBomItemJson = await fetchBomItem.json()
-            console.log(fetchBomItemJson)
-            setBomItem(fetchBomItemJson)
-        }
+  const { data : bomItem, refetch } = useQuery<BomItem>({
+    queryKey : ['BOM_ITEMS'],
+    enabled : false,
+    queryFn : async () => {
+      const fetchBomItem = await fetch(`http://localhost:5001/api/v1/bom/${props.productId}`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+      if(fetchBomItem.ok){
+        const fetchBomItemJson = await fetchBomItem.json()
+        console.log('here is fetched bom ', fetchBomItemJson)
+        return fetchBomItemJson
+      }
     }
-    useEffect(() => {
-        if(selectedBOM){
-          fetchBom()
-        }
-    }, [selectedBOM])
-    return(
+  })
+  function computeTotal () {
+    const total =  bomItem?.bomList.reduce((sum, material) => sum + material.quantityNeed * material.cost, 0)
+    if(total){
+      return formatCurrency(total)
+    } return formatCurrency(0)
+  }
+  useEffect(() => {
+    if(props.productId){
+      refetch()
+    }
+  }, [props])
+  return(
         <div>
         <Dialog open={selectedBOM !== null} onOpenChange={handleCloseBOMDetail}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>BOM Details: {bomItem.productName}</DialogTitle>
+            <DialogTitle>BOM Details: {bomItem?.productName}</DialogTitle>
             <DialogDescription>
-              SKU: {bomItem.sku} {/** | Category: {mockBOMDetails.category}*/} 
+              SKU: {bomItem?.sku} {/** | Category: {mockBOMDetails.category}*/} 
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4">
             <h3 className="text-lg font-semibold mb-2">Product Description</h3>
-            <p>{bomItem.description}</p>
+            <p>{bomItem?.description}</p>
           </div>
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-2">Materials Breakdown</h3>
@@ -73,14 +79,14 @@ export function BomView ({props, selectedBOM, handleCloseBOMDetail} : Props) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {bomItem.bomList.map((material) => {
+                {bomItem?.bomList.map((material) => {
                   return (
                     <TableRow key={material.id}>
-                      <TableCell>{material.materialName}</TableCell>
-                      <TableCell>{material.quantity}</TableCell>
-                      <TableCell>{material.unit}</TableCell>
-                      <TableCell>${material.cost.toFixed(2)}</TableCell>
-                      <TableCell>${(material.cost * material.quantity).toFixed(2)}</TableCell>
+                      <TableCell>{material.name}</TableCell>
+                      <TableCell>{material.quantityNeed}</TableCell>
+                      <TableCell>{material.unitName}</TableCell>
+                      <TableCell>{formatCurrency(material.cost)}</TableCell>
+                      <TableCell>{formatCurrency(material.cost * material.quantityNeed)}</TableCell>
                     </TableRow>
                   )
                 })}
@@ -90,15 +96,9 @@ export function BomView ({props, selectedBOM, handleCloseBOMDetail} : Props) {
           <div className="mt-6 flex justify-between items-center">
             <div>
               <h3 className="text-lg font-semibold">BOM Cost Summary</h3>
-              <p>Total Material Cost per Unit: ${bomItem.bomList.reduce((sum, material) => sum + material.quantity * material.cost, 0).toFixed(2)}</p>
+              <p>Total Material Cost per Unit: {computeTotal()}</p>
             </div>
             <div className="space-x-2">
-              <Button variant="outline">
-                <FileDown className="mr-2 h-4 w-4" /> Export
-              </Button>
-              <Button variant="outline">
-                <Copy className="mr-2 h-4 w-4" /> Duplicate
-              </Button>
               <Button>
                 Update BOM
               </Button>

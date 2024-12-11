@@ -12,21 +12,8 @@ import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import Joi from 'joi'
-// Mock data for customers and products
-const saveSalesOrderSchema = Joi.object({
-  customerId : Joi.number().required(),
-  transactionDate : Joi.date().required(),
-  status : Joi.string().required(),
-  products : Joi.array().items({
-    productId : Joi.string().required(),
-    productSizes : Joi.array().items({
-      sizeId : Joi.string().required(),
-      colorId : Joi.number(),
-      quantity : Joi.number().min(1).required(),
-      cost : Joi.number().min(0).required()
-    })
-  })
-})
+import { formatCurrency } from '@/helpers/currencyFormat'
+
 type OrderSize = {
   sizeId : string; 
   colorId? : number; 
@@ -46,19 +33,14 @@ type Order = {
 }
 type Customer = {
   id : string;
-  first_name : string; 
-  last_name : string; 
+  customerName : string;
 }
-const products = [
-  { id: '3', name: 'Dress Shoe', sizes: [{name : '35', id: '1', cost: 78.94}, {name : '36', id: '2', cost: 80.76}],  },
-]
 type Product = {
   id : string; 
   name : string; 
   sizes : Size[];
   bom : RawMaterial[];
 }
-const colors:Color[] = [{name : 'Brown', id : '1'}, {name : 'Red', id : '2'}, {name : 'White', id : '3'}]
 
 type Size = { 
   id : string; 
@@ -299,7 +281,7 @@ export default function SalesOrderPage() {
             </SelectTrigger>
             <SelectContent>
               {customers.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{`${c.first_name} ${c.last_name || ''}`}</SelectItem>
+                <SelectItem key={c.id} value={c.id}>{`${c.customerName}`}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -429,8 +411,8 @@ export default function SalesOrderPage() {
                           min={1}
                         />
                       </TableCell>
-                      <TableCell>${item.size.cost}</TableCell>
-                      <TableCell>${(item.quantity * item.size.cost).toFixed(2)}</TableCell>
+                      <TableCell>{formatCurrency(item.size.cost)}</TableCell>
+                      <TableCell>{formatCurrency(item.quantity * item.size.cost)}</TableCell>
                       <TableCell>
                         <Button variant="ghost" size="sm" onClick={() => removeProductItem(productIndex, itemIndex)}>
                           <X className="h-4 w-4" />
@@ -446,8 +428,7 @@ export default function SalesOrderPage() {
                 <Plus className="mr-2 h-4 w-4" /> Add Size
               </Button>
               <div>
-                <span className="font-semibold">Subtotal:</span> ${calculateSubtotal(product.items).toFixed(2)}
-                <span className="font-semibold">subPair:</span> ${calculateSubpairs(product.items).toFixed(2)}
+                <span className="font-semibold">Subtotal:</span> {formatCurrency(calculateSubtotal(product.items))}
               </div>
             </div>
           </CardContent>
@@ -494,7 +475,7 @@ export default function SalesOrderPage() {
       <div className="mt-6 flex flex-col md:flex-row justify-between items-start md:items-center sticky bottom-0 bg-background p-4 border-t">
   <div className="w-full md:w-auto order-1 md:order-1 bg-muted p-4 rounded-lg mb-4 md:mb-0">
     <p className="text-lg"><span className="font-semibold">Total Pairs:</span> {calculateTotalPairs()}</p>
-    <p className="text-2xl font-bold"><span>Total Amount:</span> ${calculateTotal().toFixed(2)}</p>
+    <p className="text-2xl font-bold"><span>Total Amount:</span> {formatCurrency(calculateTotal())}</p>
   </div>
   <div className="w-full md:w-auto order-2 md:order-2">
     <Button className="w-full md:w-auto" onClick={handleSaveSalesOrder}>Save Order</Button>

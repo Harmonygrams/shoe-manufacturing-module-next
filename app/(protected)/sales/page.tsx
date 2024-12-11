@@ -11,14 +11,21 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, ChevronLeft, ChevronRight, Edit, Eye, Trash2 } from 'lucide-react'
 import { format } from "date-fns"
 import Link from 'next/link'
-// Mock data for demonstration
-const orders = [
-  { id: 'ORD001', customer: 'Acme Corp', orderDate: '2023-06-01', status: 'Completed', quantity: 100, deliveryDate: '2023-06-15' },
-  { id: 'ORD002', customer: 'TechGiant Inc', orderDate: '2023-06-05', status: 'In Production', quantity: 50, deliveryDate: '2023-06-20' },
-  { id: 'ORD003', customer: 'MegaSoft Ltd', orderDate: '2023-06-10', status: 'Pending', quantity: 75, deliveryDate: '2023-06-25' },
-  { id: 'ORD004', customer: 'InnovateCo', orderDate: '2023-06-15', status: 'Delivered', quantity: 200, deliveryDate: '2023-06-30' },
-  { id: 'ORD005', customer: 'Global Systems', orderDate: '2023-06-20', status: 'In Production', quantity: 150, deliveryDate: '2023-07-05' },
-]
+import { useQuery } from '@tanstack/react-query'
+
+type Order = { 
+  id : string; 
+  customerName : string; 
+  orderDate : string; 
+  status : string; 
+  quantity : string; 
+  products : Product[]
+}
+type Product = {
+  productId : number;  
+  quantity : number;
+}
+
 
 export default function OrderManagement() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -27,9 +34,18 @@ export default function OrderManagement() {
   const [endDate, setEndDate] = useState<Date>()
   const [currentPage, setCurrentPage] = useState(1)
   const ordersPerPage = 10
-
+  const { data : orders = []} = useQuery<Order[]>({
+    queryKey : ['ORDERS'],
+    queryFn : async () => {
+      const fetchOrders = await fetch('http://localhost:5001/api/v1/sales', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+      if(fetchOrders.ok){
+        const fetchOrdersJson = await fetchOrders.json()
+        return fetchOrdersJson
+      }
+    }
+  })
   const filteredOrders = orders.filter(order => 
-    order.customer.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) &&
     (statusFilter === '' || order.status === statusFilter) &&
     (!startDate || new Date(order.orderDate) >= startDate) &&
     (!endDate || new Date(order.orderDate) <= endDate)
@@ -42,10 +58,9 @@ export default function OrderManagement() {
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber)
 
   const statusColors: { [key: string]: string } = {
-    'Completed': 'bg-green-100 text-green-800',
-    'In Production': 'bg-yellow-100 text-yellow-800',
-    'Pending': 'bg-blue-100 text-blue-800',
-    'Delivered': 'bg-purple-100 text-purple-800',
+    'in-production': 'bg-yellow-100 text-yellow-800',
+    'pending': 'bg-blue-100 text-blue-800',
+    'fulfilled': 'bg-purple-100 text-purple-800',
   }
 
   return (
@@ -73,10 +88,9 @@ export default function OrderManagement() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="Pending">Pending</SelectItem>
-            <SelectItem value="In Production">In Production</SelectItem>
-            <SelectItem value="Completed">Completed</SelectItem>
-            <SelectItem value="Delivered">Delivered</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="in-production">In Production</SelectItem>
+            <SelectItem value="fulfilled">Fulfilled</SelectItem>
           </SelectContent>
         </Select>
         <Popover>
@@ -115,7 +129,6 @@ export default function OrderManagement() {
               <TableHead>Order Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Total Quantity</TableHead>
-              <TableHead>Delivery Date</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -123,13 +136,12 @@ export default function OrderManagement() {
             {currentOrders.map((order) => (
               <TableRow key={order.id}>
                 <TableCell>{order.id}</TableCell>
-                <TableCell>{order.customer}</TableCell>
-                <TableCell>{order.orderDate}</TableCell>
+                <TableCell>{order.customerName}</TableCell>
+                <TableCell>{new Date(order.orderDate).toDateString()}</TableCell>
                 <TableCell>
                   <Badge className={statusColors[order.status]}>{order.status}</Badge>
                 </TableCell>
-                <TableCell>{order.quantity}</TableCell>
-                <TableCell>{order.deliveryDate}</TableCell>
+                <TableCell>{order.products.reduce((init, sum) => init + sum.quantity, 0)}</TableCell>
                 <TableCell>
                   <div className="flex space-x-2">
                     <Button variant="outline" size="icon">

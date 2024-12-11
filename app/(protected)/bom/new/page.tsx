@@ -13,6 +13,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useQuery } from '@tanstack/react-query'
+import { formatCurrency } from '@/helpers/currencyFormat'
 
 type Product = {
   id : string; 
@@ -211,8 +212,8 @@ export default function AddBOMPage() {
                         />
                       </TableCell>
                       <TableCell>{material?.unit}</TableCell>
-                      <TableCell>${material?.cost.toFixed(2)}</TableCell>
-                      <TableCell>${totalCost.toFixed(2)}</TableCell>
+                      <TableCell>{formatCurrency(material?.cost || 0)}</TableCell>
+                      <TableCell>{formatCurrency(totalCost)}</TableCell>
                       <TableCell>
                         <Button variant="ghost" size="sm" onClick={() => removeBOMItem(index)}>
                           <Minus className="h-4 w-4" />
@@ -245,11 +246,11 @@ export default function AddBOMPage() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span>Total cost per unit:</span>
-                <span>${totalCost.toFixed(2)}</span>
+                <span>{formatCurrency(totalCost)}</span>
               </div>
               <div className="flex justify-between font-semibold">
                 <span>Total production cost:</span>
-                <span>${(totalCost * (Number.isNaN(quantity) ? 0 : quantity)).toFixed(2)}</span>
+                <span>{formatCurrency((totalCost * (Number.isNaN(quantity) ? 0 : quantity)))}</span>
               </div>
             </div>
           </CardContent>

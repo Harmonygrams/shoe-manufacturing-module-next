@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react';
-import { Plus, Search, Pencil, Trash2, Eye } from 'lucide-react';
+import { Search, Pencil, Trash2, Eye } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import AddMaterialSheet from '@/components/materials/add-material-dialog';
 import { useQuery } from '@tanstack/react-query';
+import { formatCurrency } from '@/helpers/currencyFormat';
 
 type RawMaterial = {
   id: number;
@@ -93,7 +94,7 @@ export default function MaterialsPage() {
                     <TableCell>{material.name}</TableCell>
                     <TableCell>{material.quantity}</TableCell>
                     <TableCell>{material.unit}</TableCell>
-                    <TableCell>${material.cost.toFixed(2)}</TableCell>
+                    <TableCell>{formatCurrency(material.cost)}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button variant="ghost" size="icon" aria-label="View material details">

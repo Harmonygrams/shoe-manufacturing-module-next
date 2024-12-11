@@ -11,27 +11,35 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 // import { DatePicker } from "@/components/ui/date-picker"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { formatCurrency } from '@/helpers/currencyFormat'
+import { Skeleton } from "@/components/ui/skeleton"
 
 type Product = {
-  id: number;
-  name: string;
-  sku: string;
-  cost: number;
+  productName : string;
+  cost : number;
+  productId: number;
+  colorName : string; 
+  quantity: number;
+  rawMaterials : RawMaterial[]
 }
 
+type RawMaterial = {
+  rawMaterialName: string;
+  rawMaterialId: number;
+  quantityNeeded: number;
+  quantityAvailable: number;
+}
 
 type SalesOrder = {
   id: number;
   customerName: string;
   orderDate: string;
-  products: {
-    productId: number;
-    quantity: number;
-  }[];
+  products: Product[];
 }
 
 type ManufacturingItem = {
   productId: number;
+  productName : string;
   quantity: number;
 }
 
@@ -47,10 +55,10 @@ export default function AddManufacturingPage() {
     items: [],
     laborCost: 0,
   })
-  const [selectedSalesOrder, setSelectedSalesOrder] = useState<SalesOrder | null>(null)
-
+  const [ selectedSalesOrder, setSelectedOrder ] = useState<SalesOrder>();
+  const [isLoading, setIsLoading] = useState(false)
   const { data: products = [] } = useQuery<Product[]>({
-    queryKey: ['products'],
+    queryKey: ['PRODUCTS'],
     queryFn: async () => {
       const response = await fetch('http://localhost:5001/api/v1/products')
       if (!response.ok) throw new Error('Failed to fetch products')
@@ -68,7 +76,31 @@ export default function AddManufacturingPage() {
       
     },
   })
-
+   // And fix the handler function
+   const handleSelectSalesOrder = async (salesOrder: SalesOrder) => {
+    console.log('the id is ', salesOrder.id)
+     if(salesOrder.id){
+       setIsLoading(true)
+       try {
+         const response = await fetch(`http://localhost:5001/api/v1/sales/${salesOrder.id}`, {
+           method: 'GET',
+           headers: {
+             'Content-Type': 'application/json'
+           }
+         });
+         if(response.ok){
+          const responseJson = await response.json() as SalesOrder;
+          console.log(responseJson);
+          setSelectedOrder(responseJson)
+         }
+       } catch (error) {
+         console.error('Error fetching sales order:', error)
+       } finally {
+         setIsLoading(false)
+       }
+     }
+    
+  };
   const handleDateChange = (date: Date | undefined) => {
     if (date) {
       setManufacturingData(prev => ({ ...prev, date }))
@@ -77,10 +109,10 @@ export default function AddManufacturingPage() {
 
   const handleAddItem = () => {
     if (!selectedSalesOrder) {
-      setManufacturingData(prev => ({
-        ...prev,
-        items: [...prev.items, { productId: 0, quantity: 0 }],
-      }))
+      // setManufacturingData(prev => ({
+      //   ...prev,
+      //   items: [...prev.items, { productId: 0, quantity: 0, productName : selectedSalesOrder }],
+      // }))
     }
   }
 
@@ -109,28 +141,19 @@ export default function AddManufacturingPage() {
 
   const calculateTotalCost = () => {
     const itemsCost = manufacturingData.items.reduce((total, item) => {
-      const product = products.find(p => p.id === item.productId)
+      const product = products.find(p => p.productId === item.productId)
       return total + (product?.cost || 0) * item.quantity
     }, 0)
     return itemsCost + manufacturingData.laborCost
   }
 
-  const handleSelectSalesOrder = (salesOrder: SalesOrder) => {
-    setSelectedSalesOrder(salesOrder)
-    setManufacturingData(prev => ({
-      ...prev,
-      items: salesOrder.products.map(p => ({ productId: p.productId, quantity: p.quantity })),
-    }))
-  }
-
   const handleUnselectSalesOrder = () => {
-    setSelectedSalesOrder(null)
+    setSelectedOrder(undefined)
     setManufacturingData(prev => ({ ...prev, items: [] }))
   }
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Implement the logic to save the manufacturing data
+    e.preventDefault() 
     console.log('Submitting manufacturing data:', manufacturingData)
   }
 
@@ -166,6 +189,7 @@ export default function AddManufacturingPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Product</TableHead>
+                        <TableHead>Color</TableHead>
                         <TableHead>Quantity</TableHead>
                         <TableHead>Manufacturing Cost</TableHead>
                         <TableHead>Total Cost</TableHead>
@@ -173,57 +197,69 @@ export default function AddManufacturingPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {manufacturingData.items.map((item, index) => {
-                        const product = products.find(p => p.id === item.productId)
-                        const totalCost = (product?.cost || 0) * item.quantity
-                        return (
-                          <TableRow key={index}>
-                            <TableCell>
-                              {selectedSalesOrder ? (
-                                product?.name
-                              ) : (
-                                <Select
-                                  value={item.productId.toString()}
-                                  onValueChange={(value) => handleItemChange(index, 'productId', parseInt(value))}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select product" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {products.map((product) => (
-                                      <SelectItem key={product.id} value={product.id.toString()}>
-                                        {product.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {selectedSalesOrder ? (
-                                item.quantity
-                              ) : (
-                                <Input
-                                  type="number"
-                                  value={item.quantity}
-                                  onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value))}
-                                  min="0"
-                                />
-                              )}
-                            </TableCell>
-                            {/* <TableCell>${product?.manufacturingCost.toFixed(2) || '0.00'}</TableCell> */}
-                            <TableCell>3.00</TableCell>
-                            <TableCell>${totalCost.toFixed(2)}</TableCell>
-                            {!selectedSalesOrder && (
+                      {isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={6}>
+                            <div className="space-y-2">
+                              <Skeleton className="h-4 w-full" />
+                              <Skeleton className="h-4 w-full" />
+                              <Skeleton className="h-4 w-full" />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        selectedSalesOrder?.products.map((item, index) => {
+                          const product = products.find(p => p.productId === item.productId)
+                          const totalCost = (item?.cost || 0) * item.quantity
+                          return (
+                            <TableRow key={index}>
                               <TableCell>
-                                <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(index)}>
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {selectedSalesOrder ? (
+                                  item?.productName
+                                ) : (
+                                  <Select
+                                    value={item.productId.toString()}
+                                    onValueChange={(value) => handleItemChange(index, 'productId', parseInt(value))}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select product" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {products.map((product) => (
+                                        <SelectItem key={product.productId} value={product.productId.toString()}>
+                                          {item.productName}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
                               </TableCell>
-                            )}
-                          </TableRow>
-                        )
-                      })}
+                              <TableCell>{item.colorName}</TableCell>
+                              <TableCell>
+                                {selectedSalesOrder ? (
+                                  item.quantity
+                                ) : (
+                                  <Input
+                                    type="number"
+                                    value={item.quantity}
+                                    onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value))}
+                                    min="0"
+                                  />
+                                )}
+                              </TableCell>
+                              <TableCell>{formatCurrency(item.cost)}</TableCell>
+                              <TableCell>{formatCurrency(totalCost)}</TableCell>
+                              {!selectedSalesOrder && (
+                                <TableCell>
+                                  <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(index)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          )
+                        })
+                      )}
                     </TableBody>
                   </Table>
                   {!selectedSalesOrder && (
@@ -244,16 +280,68 @@ export default function AddManufacturingPage() {
                     step="0.01"
                   />
                 </div>
-
-                <div className="flex justify-between items-center">
-                  <div className="text-xl font-semibold">
-                    Total Manufacturing Cost: ${calculateTotalCost().toFixed(2)}
-                  </div>
-                  <Button type="submit">Save Manufacturing Data</Button>
-                </div>
               </form>
             </CardContent>
           </Card>
+          {/* Raw Materials Section */}
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold">Raw Materials</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Raw Material</TableHead>
+                    <TableHead>Quantity Needed</TableHead>
+                    <TableHead>Quantity Available</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={5}>
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-full" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    selectedSalesOrder?.products.flatMap((product) =>
+                      product.rawMaterials.map((rawMaterial, index) => {
+                        return (<TableRow key={rawMaterial.rawMaterialId}>
+                          {index === 0 && (
+                            <TableCell rowSpan={product.rawMaterials.length}>
+                              {product.productName}
+                            </TableCell>
+                          )}
+                          <TableCell>{rawMaterial.rawMaterialName}</TableCell>
+                          <TableCell>{rawMaterial.quantityNeeded}</TableCell>
+                          <TableCell>{rawMaterial.quantityAvailable}</TableCell>
+                          <TableCell>
+                            {rawMaterial.quantityAvailable >= rawMaterial.quantityNeeded * product.quantity ? (
+                              <span className="text-green-600">Sufficient</span>
+                            ) : (
+                              <span className="text-red-600">Insufficient</span>
+                            )}
+                          </TableCell>
+                        </TableRow>)})
+                    )
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+      <div className="flex justify-between items-center mt-10">
+        <div className="text-xl font-semibold">
+          Total Manufacturing Cost: ${calculateTotalCost().toFixed(2)}
+        </div>
+        <Button type="submit">Save Manufacturing Data</Button>
+      </div>
         </div>
         <div>
           <Card>
@@ -283,3 +371,4 @@ export default function AddManufacturingPage() {
     </div>
   )
 }
+
