@@ -162,6 +162,7 @@ export default function SalesOrderPage() {
 
   const addProduct = (productId: string) => {
     const product = products.find(p => p.id === productId)
+    console.log(product); 
     if (product) {
       setSelectedProducts([...selectedProducts, {
         id: product.id,

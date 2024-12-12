@@ -13,13 +13,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { formatCurrency } from '@/helpers/currencyFormat'
 import { Skeleton } from "@/components/ui/skeleton"
+import { randomBytes, randomUUID } from 'crypto'
 
 type Product = {
   productName : string;
   cost : number;
   productId: number;
   colorName : string; 
+  colorId : number; 
   quantity: number;
+  sizeName : string; 
+  sizeId : string;
   rawMaterials : RawMaterial[]
 }
 
@@ -28,6 +32,7 @@ type RawMaterial = {
   rawMaterialId: number;
   quantityNeeded: number;
   quantityAvailable: number;
+  quantityPerUnit : number;
 }
 
 type SalesOrder = {
@@ -78,7 +83,6 @@ export default function AddManufacturingPage() {
   })
    // And fix the handler function
    const handleSelectSalesOrder = async (salesOrder: SalesOrder) => {
-    console.log('the id is ', salesOrder.id)
      if(salesOrder.id){
        setIsLoading(true)
        try {
@@ -136,7 +140,7 @@ export default function AddManufacturingPage() {
   }
 
   const handleLaborCostChange = (value: string) => {
-    setManufacturingData(prev => ({ ...prev, laborCost: parseFloat(value) || 0 }))
+    setManufacturingData(prev => ({ ...prev, laborCost: parseFloat(value) }))
   }
 
   const calculateTotalCost = () => {
@@ -152,9 +156,23 @@ export default function AddManufacturingPage() {
     setManufacturingData(prev => ({ ...prev, items: [] }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault() 
-    console.log('Submitting manufacturing data:', manufacturingData)
+  const handleSubmit = () => { 
+    if(selectedSalesOrder){
+      const allRawMaterials = selectedSalesOrder.products.map(rawMaterials => rawMaterials.rawMaterials)
+      const getAllMaterials = allRawMaterials.map(element => ({
+        // rawMaterialName : element.
+      }))
+      const saveInDb = {
+        productionDate : new Date(), 
+        status : 'finishing',
+        products : selectedSalesOrder?.products.map((product) => ({
+          productId : product.productId,
+          sizeId : product.sizeId, 
+          colorId : product.colorId, 
+          quantity : product.quantity,
+        })), 
+      }
+    }
   }
 
   return (
@@ -189,6 +207,7 @@ export default function AddManufacturingPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Product</TableHead>
+                        <TableHead>Size</TableHead>
                         <TableHead>Color</TableHead>
                         <TableHead>Quantity</TableHead>
                         <TableHead>Manufacturing Cost</TableHead>
@@ -234,6 +253,7 @@ export default function AddManufacturingPage() {
                                   </Select>
                                 )}
                               </TableCell>
+                              <TableCell>{item.sizeName}</TableCell>
                               <TableCell>{item.colorName}</TableCell>
                               <TableCell>
                                 {selectedSalesOrder ? (
@@ -294,6 +314,7 @@ export default function AddManufacturingPage() {
                   <TableRow>
                     <TableHead>Product</TableHead>
                     <TableHead>Raw Material</TableHead>
+                    <TableHead>Quantity Per Unit</TableHead>
                     <TableHead>Quantity Needed</TableHead>
                     <TableHead>Quantity Available</TableHead>
                     <TableHead>Status</TableHead>
@@ -317,9 +338,14 @@ export default function AddManufacturingPage() {
                           {index === 0 && (
                             <TableCell rowSpan={product.rawMaterials.length}>
                               {product.productName}
+                              <br />
+                              {product.colorName}
+                              <br />
+                              {product.quantity}
                             </TableCell>
                           )}
                           <TableCell>{rawMaterial.rawMaterialName}</TableCell>
+                          <TableCell>{rawMaterial.quantityPerUnit}</TableCell>
                           <TableCell>{rawMaterial.quantityNeeded}</TableCell>
                           <TableCell>{rawMaterial.quantityAvailable}</TableCell>
                           <TableCell>
@@ -340,7 +366,7 @@ export default function AddManufacturingPage() {
         <div className="text-xl font-semibold">
           Total Manufacturing Cost: ${calculateTotalCost().toFixed(2)}
         </div>
-        <Button type="submit">Save Manufacturing Data</Button>
+        <Button type="submit" onClick={handleSubmit}>Save Manufacturing Data</Button>
       </div>
         </div>
         <div>
