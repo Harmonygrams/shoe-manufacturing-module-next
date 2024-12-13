@@ -1,5 +1,4 @@
 'use client'
-
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Trash2, X } from 'lucide-react'
@@ -10,11 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 // import { DatePicker } from "@/components/ui/date-picker"
+import { useToast } from '@/hooks/use-toast'
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { formatCurrency } from '@/helpers/currencyFormat'
 import { Skeleton } from "@/components/ui/skeleton"
-import { randomBytes, randomUUID } from 'crypto'
-
+import { v4 as uuidv4} from 'uuid'
 type Product = {
   productName : string;
   cost : number;
@@ -55,11 +54,13 @@ type ManufacturingData = {
 }
 
 export default function AddManufacturingPage() {
+  const {toast} = useToast(); 
   const [manufacturingData, setManufacturingData] = useState<ManufacturingData>({
     date: new Date(),
     items: [],
     laborCost: 0,
   })
+  const [ loading, setLoading ] = useState(false); 
   const [ selectedSalesOrder, setSelectedOrder ] = useState<SalesOrder>();
   const [isLoading, setIsLoading] = useState(false)
   const { data: products = [] } = useQuery<Product[]>({
@@ -70,7 +71,6 @@ export default function AddManufacturingPage() {
       return response.json()
     },
   })
-
   const { data: salesOrders = [] } = useQuery<SalesOrder[]>({
     queryKey: ['SALES'],
     queryFn: async () => {
@@ -156,12 +156,21 @@ export default function AddManufacturingPage() {
     setManufacturingData(prev => ({ ...prev, items: [] }))
   }
 
-  const handleSubmit = () => { 
+  const handleSubmit = async () => { 
+    setLoading(true); 
     if(selectedSalesOrder){
       const allRawMaterials = selectedSalesOrder.products.map(rawMaterials => rawMaterials.rawMaterials)
-      const getAllMaterials = allRawMaterials.map(element => ({
-        // rawMaterialName : element.
-      }))
+      let storeRawMaterials:RawMaterial[] = []
+      for(const allRawMaterial of allRawMaterials){
+        for(const rawMaterial of allRawMaterial){
+          const rawMaterialInArray = storeRawMaterials.find(item => item.rawMaterialId === rawMaterial.rawMaterialId)
+          if(rawMaterialInArray){
+            rawMaterialInArray.quantityNeeded += rawMaterial.quantityNeeded;
+          }else{
+            storeRawMaterials.push(rawMaterial);
+          }
+        }
+      }
       const saveInDb = {
         productionDate : new Date(), 
         status : 'finishing',
@@ -171,6 +180,28 @@ export default function AddManufacturingPage() {
           colorId : product.colorId, 
           quantity : product.quantity,
         })), 
+        rawMaterials : storeRawMaterials.map((rawMaterial) => ({ 
+          materialId : rawMaterial.rawMaterialId,
+          quantity : rawMaterial.quantityNeeded
+        }))
+      }
+      const  backend = await fetch('http://localhost:5001/api/v1/productions', { method : 'POST', body : JSON.stringify(saveInDb), headers : { 'Content-Type' : 'Application/json'}})
+      if(backend.ok){
+        toast({
+          title: "Production Added Successfully",
+          description: "You have successfully added no production",
+        })
+        setLoading(false); 
+        window.location.href = '/production'
+      }
+      else{
+        const errorMessage = await backend.json()
+        toast({
+          title: "Production error occured",
+          description: errorMessage,
+          variant : 'destructive'
+        })
+        setLoading(false)
       }
     }
   }
@@ -334,7 +365,7 @@ export default function AddManufacturingPage() {
                   ) : (
                     selectedSalesOrder?.products.flatMap((product) =>
                       product.rawMaterials.map((rawMaterial, index) => {
-                        return (<TableRow key={rawMaterial.rawMaterialId}>
+                        return (<TableRow key={uuidv4()}>
                           {index === 0 && (
                             <TableCell rowSpan={product.rawMaterials.length}>
                               {product.productName}
@@ -366,7 +397,7 @@ export default function AddManufacturingPage() {
         <div className="text-xl font-semibold">
           Total Manufacturing Cost: ${calculateTotalCost().toFixed(2)}
         </div>
-        <Button type="submit" onClick={handleSubmit}>Save Manufacturing Data</Button>
+        <Button type="submit" disabled={loading} onClick={handleSubmit}>Save Production</Button>
       </div>
         </div>
         <div>
