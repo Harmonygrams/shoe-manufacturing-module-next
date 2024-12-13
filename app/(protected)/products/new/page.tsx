@@ -13,6 +13,8 @@ import { formatCurrency } from '@/helpers/currencyFormat'
 // import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from 'next/navigation'
 import { SelectGroup, SelectLabel } from '@radix-ui/react-select'
+import { baseUrl } from '@/utils/baseUrl'
+import { useToast } from '@/hooks/use-toast'
 
 type ProductSize = {
   sizeId: number | string;
@@ -52,13 +54,13 @@ export default function ProductsPage() {
     cost: 0
   })
 
-  // const { toast } = useToast()
+  const { toast } = useToast()
   const router = useRouter()
 
   const { data: units = [] } = useQuery<Unit[]>({
     queryKey: ['UNITS'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:5001/api/v1/units')
+      const response = await fetch(`${baseUrl()}/units`)
       if (!response.ok) throw new Error('Failed to fetch units')
       return response.json()
     }
@@ -67,7 +69,7 @@ export default function ProductsPage() {
   const { data: sizes = [] } = useQuery<Size[]>({
     queryKey: ['SIZES'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:5001/api/v1/sizes')
+      const response = await fetch(`${baseUrl()}/sizes`)
       if (!response.ok) throw new Error('Failed to fetch sizes')
       return response.json()
     }
@@ -75,7 +77,7 @@ export default function ProductsPage() {
 
   const saveProductMutation = useMutation({
     mutationFn: async (product: Product) => {
-      const response = await fetch('http://localhost:5001/api/v1/products', {
+      const response = await fetch(`${baseUrl()}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(product)
@@ -84,19 +86,16 @@ export default function ProductsPage() {
       return response.json()
     },
     onSuccess: () => {
-      // toast({
-      //   title: "Product saved successfully",
-      //   description: "You will be redirected to the products page.",
-      // })
-      setTimeout(() => router.push('/products'), 2000)
+      setTimeout(() => router.push('/products'), 500)
+      toast({
+        title: "Product saved successfully",
+      })
     },
     onError: (error) => {
-      console.log(error);
-      // toast({
-      //   title: "Failed to save product",
-      //   description: error.message,
-      //   variant: "destructive"
-      // })
+      toast({
+        title: "An error occurred",
+        variant: "destructive"
+      })
     }
   })
 

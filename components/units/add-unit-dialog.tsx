@@ -7,8 +7,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
+import { baseUrl } from '@/utils/baseUrl'
+import { useToast } from '@/hooks/use-toast'
 
 export default function AddUnitSheet() {
+  const [loading, setLoading] = useState(false); 
+  const { toast } = useToast(); 
   const [isOpen, setIsOpen] = useState(false)
   const [unit, setUnit] = useState({
     name: '',
@@ -23,9 +27,10 @@ export default function AddUnitSheet() {
 
 
   async function handleSubmit (e: React.FormEvent) {
+    setLoading(true); 
     e.preventDefault()
     // Here you would typically send the data to your backend
-    const saveMaterialToDb = await fetch('http://localhost:5001/api/v1/units', { method : 'POST', body : JSON.stringify(unit), headers : { 'Content-Type' : 'Application/json'}})
+    const saveMaterialToDb = await fetch(`${baseUrl()}/units`, { method : 'POST', body : JSON.stringify(unit), headers : { 'Content-Type' : 'Application/json'}})
     if(saveMaterialToDb.ok){
         setIsOpen(false)
         // Reset form after submission
@@ -34,6 +39,17 @@ export default function AddUnitSheet() {
           description: '',
           symbol : ''
         })
+        setLoading(false); 
+        toast({
+          title : 'Unit added successfully'
+        })
+
+    }else{
+      toast({
+        title : 'An error occurred', 
+        variant : 'destructive'
+      })
+      setLoading(false);
     }
   }
 
@@ -64,17 +80,6 @@ export default function AddUnitSheet() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              name="description"
-              value={unit.description}
-              onChange={handleInputChange}
-              placeholder="Enter unit description"
-              rows={3}
-            />
-          </div>
-          <div className="space-y-2">
                 <Label htmlFor="symbol">Symbol</Label>
                 <Input
                 id="symbol"
@@ -86,9 +91,20 @@ export default function AddUnitSheet() {
                 required
                 />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              name="description"
+              value={unit.description}
+              onChange={handleInputChange}
+              placeholder="Enter unit description"
+              rows={3}
+            />
+          </div>
           <SheetFooter>
           <div className="fixed bottom-0 right-0 w-full sm:max-w-[540px] bg-background border-t p-4 flex justify-end space-x-2">
-            <Button type="submit">Save Unit</Button>
+            <Button disabled={loading} type="submit">Save Unit</Button>
           </div>
           </SheetFooter>
         </form>

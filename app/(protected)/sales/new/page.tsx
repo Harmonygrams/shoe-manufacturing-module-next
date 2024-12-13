@@ -11,8 +11,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
-import Joi from 'joi'
+import { toast, useToast } from '@/hooks/use-toast'
 import { formatCurrency } from '@/helpers/currencyFormat'
+import { baseUrl } from '@/utils/baseUrl'
 
 type OrderSize = {
   sizeId : string; 
@@ -74,6 +75,7 @@ type RawMaterial = {
 }
 export default function SalesOrderPage() {
   const [isLoadingBom, setIsLoadingBom] = useState<boolean>(false); 
+  const [isLoading, setIsLoading ] = useState<boolean>(false); 
   const [customer, setCustomer] = useState<string>('')
   const [orderDate, setOrderDate] = useState<Date | undefined>(new Date())
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([])
@@ -85,7 +87,7 @@ export default function SalesOrderPage() {
   const { data : customers = []} = useQuery<Customer[]>({
     queryKey : ['CUSTOMERS'], 
     queryFn : async () => {
-      const fetchCustomers = await fetch('http://localhost:5001/api/v1/customers', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+      const fetchCustomers = await fetch(`${baseUrl()}/customers`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
       if(fetchCustomers.ok){
         const fetchCustomersJson = await fetchCustomers.json();
         return fetchCustomersJson
@@ -97,7 +99,7 @@ export default function SalesOrderPage() {
       {
         queryKey : ['PRODUCTS'],
         queryFn : async () => {
-          const fetchProducts = await fetch('http://localhost:5001/api/v1/products', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+          const fetchProducts = await fetch(`${baseUrl()}/products`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
           if(fetchProducts.ok){
             const fetchProductsJson = await fetchProducts.json() as Product[]
             return fetchProductsJson
@@ -107,7 +109,7 @@ export default function SalesOrderPage() {
       {
         queryKey : ['COLORS'], 
         queryFn : async () => {
-          const fetchColors = await fetch('http://localhost:5001/api/v1/colors', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+          const fetchColors = await fetch(`${baseUrl()}/colors`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
           if(fetchColors.ok){
             const fetchColorsJson = await fetchColors.json() as Color[]
             return fetchColorsJson
@@ -118,11 +120,27 @@ export default function SalesOrderPage() {
   })
   const saveOrderToDb = useMutation({
     mutationFn : async (payload : string) => {
-      const addToDb = await fetch('http://localhost:5001/api/v1/sales', { method : 'POST', body: payload, headers : { 'Content-Type' : 'Application/json'}})
+      setIsLoading(true);
+      const addToDb = await fetch(`${baseUrl()}/sales`, { method : 'POST', body: payload, headers : { 'Content-Type' : 'Application/json'}})
       if(addToDb.ok){
         const addToDbJson = await addToDb.json()
         return addToDbJson
+      }else{
+        
       }
+    },
+    onSuccess : () => {
+      window.location.href = '/sales'
+      setIsLoading(false)
+        toast({
+          title : "Sales added successfully"
+        })
+    },
+    onError : () => {
+      setIsLoading(false)
+        toast({
+          title : "An occurred occurred"
+        })
     }
   })
   async function handleSaveSalesOrder () {
@@ -479,7 +497,7 @@ export default function SalesOrderPage() {
     <p className="text-2xl font-bold"><span>Total Amount:</span> {formatCurrency(calculateTotal())}</p>
   </div>
   <div className="w-full md:w-auto order-2 md:order-2">
-    <Button className="w-full md:w-auto" onClick={handleSaveSalesOrder}>Save Order</Button>
+    <Button className="w-full md:w-auto" onClick={handleSaveSalesOrder} disabled={isLoading}>Save Order</Button>
   </div>
 </div>
     </div>

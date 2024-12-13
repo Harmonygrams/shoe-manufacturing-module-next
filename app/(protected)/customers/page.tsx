@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ScrollArea } from "@/components/ui/scroll-area"
 import CustomerDetailsDialog from '@/components/customers/add-customer-dialog'
 import { useQuery } from '@tanstack/react-query'
+import { baseUrl } from '@/utils/baseUrl'
 
 type Customer = {
   id : string;
@@ -28,7 +29,7 @@ export default function CustomersPage() {
   const { data : customers = []} = useQuery<Customer[]>({
     queryKey : ['CUSTOMER'],
     queryFn : async () => {
-      const fetchCustomers = await fetch('http://localhost:5001/api/v1/customers', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+      const fetchCustomers = await fetch(`${baseUrl()}/customers`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
       if(fetchCustomers.ok){
         const fetchCustomersJson = await fetchCustomers.json()
         return fetchCustomersJson

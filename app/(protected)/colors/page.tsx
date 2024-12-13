@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useQuery } from '@tanstack/react-query'
 import AddColorSheet from '@/components/colors/add-color-dialog'
+import { baseUrl } from '@/utils/baseUrl'
 
 // Mock data for Colors
 type Color = {
@@ -20,7 +21,7 @@ export default function ColorsPage() {
   const { data, isLoading, isSuccess} = useQuery({
     queryKey : ["Colors"],
     queryFn : async () => {
-      const fetchColors = await fetch('http://localhost:5001/api/v1/colors', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+      const fetchColors = await fetch(`${baseUrl()}/colors`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
       if(fetchColors.ok){
         const fetchColorsJson = await fetchColors.json();
         return fetchColorsJson;

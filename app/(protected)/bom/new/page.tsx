@@ -14,6 +14,8 @@ import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useQuery } from '@tanstack/react-query'
 import { formatCurrency } from '@/helpers/currencyFormat'
+import { baseUrl } from '@/utils/baseUrl'
+import { useToast } from '@/hooks/use-toast'
 
 type Product = {
   id : string; 
@@ -32,6 +34,7 @@ type Material = {
 }
 
 export default function AddBOMPage() {
+  const { toast } = useToast()
   const [selectedProduct, setSelectedProduct] = useState<string>('')
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [products, setProducts] = useState<Product[]>([])
@@ -43,7 +46,7 @@ export default function AddBOMPage() {
   const productQuery = useQuery({
     queryKey : ['PRODUCTS'],
     queryFn : async () => {
-      const fetchProducts = await fetch('http://localhost:5001/api/v1/products', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+      const fetchProducts = await fetch(`${baseUrl()}/products`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
       if(fetchProducts.ok){
         const fetchProductsMaterial = await fetchProducts.json()
         return fetchProductsMaterial
@@ -53,7 +56,7 @@ export default function AddBOMPage() {
   const rawMaterialQuery = useQuery({
     queryKey : ['RAW_MATERIAL'],
     queryFn : async () => {
-      const fetchMaterials = await fetch('http://localhost:5001/api/v1/materials', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+      const fetchMaterials = await fetch(`${baseUrl()}/materials`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
       if(fetchMaterials.ok){ 
         const fetchMaterialsJson = await fetchMaterials.json()
         return fetchMaterialsJson
@@ -95,13 +98,21 @@ export default function AddBOMPage() {
 
   async function  handleSaveBOM () {
     setIsLoading(true)
-    const saveBom = await fetch('http://localhost:5001/api/v1/bom', { method : 'POST', body : JSON.stringify({bomList, quantity, bomDate, productId : selectedProduct,}), headers : { 'Content-Type' : 'Application/json'}})
+    const saveBom = await fetch(`${baseUrl()}/bom`, { method : 'POST', body : JSON.stringify({bomList, quantity, bomDate, productId : selectedProduct,}), headers : { 'Content-Type' : 'Application/json'}})
     if(saveBom.ok){
       await saveBom.json()
-      window.location.href = "/bom"
       setIsLoading(false);
+      toast({
+        title : "Bill of materials added successfully"
+      })
+      window.location.href = "/bom"
+    }else{
+      toast({
+        title : "An error occurred", 
+        variant : 'destructive'
+      })
+      setIsLoading(false); 
     }
-    setIsLoading(false); 
   }
   useEffect(() => {
     if(productQuery.isSuccess) {
@@ -126,6 +137,7 @@ export default function AddBOMPage() {
             <Popover>
               <PopoverTrigger asChild>
                 <Button
+                  disabled={isLoading}
                   variant={"outline"}
                   className={cn(
                     "w-full justify-start text-left font-normal",
@@ -148,7 +160,7 @@ export default function AddBOMPage() {
           </div>
           <div className="flex flex-col space-y-1.5">
             <Label htmlFor="product">Product</Label>
-            <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+            <Select value={selectedProduct} onValueChange={setSelectedProduct} disabled={isLoading || productQuery.isLoading}>
               <SelectTrigger id="product">
                 <SelectValue placeholder="Select a product" />
               </SelectTrigger>
@@ -257,7 +269,7 @@ export default function AddBOMPage() {
         </Card>
       </div>
       <div className="flex justify-end space-x-2">
-        <Button onClick={handleSaveBOM}>{isLoading ? "Saving" : "Save BOM"}</Button>
+        <Button disabled={isLoading} onClick={handleSaveBOM}>{isLoading ? "Saving" : "Save BOM"}</Button>
       </div>
     </div>
   )

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useQuery } from '@tanstack/react-query'
 import AddUnitSheet from '@/components/units/add-unit-dialog'
+import { baseUrl } from '@/utils/baseUrl'
 
 // Mock data for units
 type Unit = {
@@ -23,7 +24,7 @@ export default function UnitsPage() {
   const { data, isLoading, isSuccess} = useQuery({
     queryKey : ["UNITS"],
     queryFn : async () => {
-      const fetchUnits = await fetch('http://localhost:5001/api/v1/units', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+      const fetchUnits = await fetch(`${baseUrl()}/units`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
       if(fetchUnits.ok){
         const fetchUnitsJson = await fetchUnits.json();
         return fetchUnitsJson;

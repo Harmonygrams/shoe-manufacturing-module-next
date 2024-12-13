@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import AddMaterialSheet from '@/components/materials/add-material-dialog';
 import { useQuery } from '@tanstack/react-query';
 import { formatCurrency } from '@/helpers/currencyFormat';
+import { baseUrl } from '@/utils/baseUrl';
 
 type RawMaterial = {
   id: number;
@@ -26,7 +27,7 @@ export default function MaterialsPage() {
   const { data, isSuccess, isLoading, error, refetch } = useQuery({
     queryKey: ['RAW_MATERIAL'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:5001/api/v1/materials', {
+      const response = await fetch(`${baseUrl()}/materials`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });

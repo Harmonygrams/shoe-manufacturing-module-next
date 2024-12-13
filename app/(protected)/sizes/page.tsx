@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useQuery } from '@tanstack/react-query'
 import AddSizeSheet from '@/components/size/add-unit-dialog'
+import { baseUrl } from '@/utils/baseUrl'
 
 // Mock data for sizes
 type Size = {
@@ -20,7 +21,7 @@ export default function SizesPage() {
   const { data, isLoading, isSuccess} = useQuery({
     queryKey : ["Sizes"],
     queryFn : async () => {
-      const fetchSizes = await fetch('http://localhost:5001/api/v1/sizes', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+      const fetchSizes = await fetch(`${baseUrl()}/sizes`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
       if(fetchSizes.ok){
         const fetchSizesJson = await fetchSizes.json();
         return fetchSizesJson;

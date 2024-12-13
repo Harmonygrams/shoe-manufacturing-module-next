@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query'
+import { baseUrl } from '@/utils/baseUrl'
 type Product = { 
   id : number;
   name : string; 
@@ -19,7 +20,7 @@ export default function ProductsPage() {
   const { data : products = [] } = useQuery<Product[]>({
     queryKey : ['PRODUCTS'],
     queryFn : async () => {
-      const fetchMaterials = await fetch('http://localhost:5001/api/v1/products', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+      const fetchMaterials = await fetch(`${baseUrl()}/products`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
       if(fetchMaterials.ok){
         const fetchMaterialsJson = await fetchMaterials.json()
         return fetchMaterialsJson

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { baseUrl } from '@/utils/baseUrl'
 
 export default function CustomerDetailsDialog() {
   const [open, setOpen] = useState(false)
@@ -26,7 +27,7 @@ export default function CustomerDetailsDialog() {
   async function handleSubmit (event: React.FormEvent) {
     setLoading(true); 
     event.preventDefault()
-    const addCustomer = await fetch('http://localhost:5001/api/v1/customers', { method : 'POST', body : JSON.stringify(customerData), headers : {'Content-Type' : 'Application/json'}})
+    const addCustomer = await fetch(`${baseUrl()}/customers`, { method : 'POST', body : JSON.stringify(customerData), headers : {'Content-Type' : 'Application/json'}})
     if(addCustomer.ok){
       setLoading(false); 
       setOpen(false);
@@ -50,7 +51,7 @@ export default function CustomerDetailsDialog() {
             <RadioGroup id="customerType" value={customerData.customerType} onValueChange={(type) => setCustomerData(prev => ({...prev, customerType : type}))} className="flex" name="customerType">
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="individual" id="individual" />
-                <Label htmlFor="bndividual">Individual</Label>
+                <Label htmlFor="individual">Individual</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="business" id="business" />
@@ -59,7 +60,7 @@ export default function CustomerDetailsDialog() {
             </RadioGroup>
           </div>
 
-          {customerData.customerType === 'Individual' ? (
+          {customerData.customerType === 'individual' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>

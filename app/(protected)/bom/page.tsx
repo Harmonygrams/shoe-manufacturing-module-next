@@ -13,6 +13,7 @@ import { BomView } from '@/components/bom/bom-view'
 import { dateFormater } from '@/utils/date-formater'
 import { useQuery } from '@tanstack/react-query'
 import { formatCurrency } from '@/helpers/currencyFormat'
+import { baseUrl } from '@/utils/baseUrl'
 
 type BomListMaterial = {
   id : string; 
@@ -40,7 +41,7 @@ export default function BOMPage() {
   const { data : bomItems = []} = useQuery<Bom[]>({
     queryKey : ['BOM'],
     queryFn : async () => {
-      const fetchBom = await fetch("http://localhost:5001/api/v1/bom", { method : "GET", headers : { 'Content-Type' : 'Application/json'}})
+      const fetchBom = await fetch(`${baseUrl()}/bom`, { method : "GET", headers : { 'Content-Type' : 'Application/json'}})
       if(fetchBom.ok){
         const fetchBomJson = await fetchBom.json()
         console.log(fetchBomJson)

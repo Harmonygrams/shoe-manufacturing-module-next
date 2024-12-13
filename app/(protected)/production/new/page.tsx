@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { formatCurrency } from '@/helpers/currencyFormat'
 import { Skeleton } from "@/components/ui/skeleton"
 import { v4 as uuidv4} from 'uuid'
+import { baseUrl } from '@/utils/baseUrl'
 type Product = {
   productName : string;
   cost : number;
@@ -66,7 +67,7 @@ export default function AddManufacturingPage() {
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['PRODUCTS'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:5001/api/v1/products')
+      const response = await fetch(`${baseUrl()}/products`)
       if (!response.ok) throw new Error('Failed to fetch products')
       return response.json()
     },
@@ -74,7 +75,7 @@ export default function AddManufacturingPage() {
   const { data: salesOrders = [] } = useQuery<SalesOrder[]>({
     queryKey: ['SALES'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:5001/api/v1/sales', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+      const response = await fetch(`${baseUrl()}/sales`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
       if (!response.ok) throw new Error('Failed to fetch sales orders')
       const salesOrdersJson = await response.json() as SalesOrder[]
       return salesOrdersJson;
@@ -86,7 +87,7 @@ export default function AddManufacturingPage() {
      if(salesOrder.id){
        setIsLoading(true)
        try {
-         const response = await fetch(`http://localhost:5001/api/v1/sales/${salesOrder.id}`, {
+         const response = await fetch(`${baseUrl()}/sales/${salesOrder.id}`, {
            method: 'GET',
            headers: {
              'Content-Type': 'application/json'
@@ -185,7 +186,7 @@ export default function AddManufacturingPage() {
           quantity : rawMaterial.quantityNeeded
         }))
       }
-      const  backend = await fetch('http://localhost:5001/api/v1/productions', { method : 'POST', body : JSON.stringify(saveInDb), headers : { 'Content-Type' : 'Application/json'}})
+      const  backend = await fetch(`${baseUrl()}/productions`, { method : 'POST', body : JSON.stringify(saveInDb), headers : { 'Content-Type' : 'Application/json'}})
       if(backend.ok){
         toast({
           title: "Production Added Successfully",

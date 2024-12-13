@@ -9,6 +9,8 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useQuery } from '@tanstack/react-query'
+import { useToast } from '@/hooks/use-toast'
+import { baseUrl } from '@/utils/baseUrl'
 
 type Unit = {
   id: string
@@ -17,6 +19,8 @@ type Unit = {
 }
 
 export default function AddMaterialSheet() {
+  const [loading, setLoading] = useState<boolean>(false); 
+  const { toast } = useToast()
   const [isOpen, setIsOpen] = useState(false)
   const [units, setUnits] = useState<Unit[]>([])
   const [material, setMaterial] = useState({
@@ -32,7 +36,7 @@ export default function AddMaterialSheet() {
   const { data, isSuccess, isLoading, error } = useQuery({
     queryKey: ['UNITS'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:5001/api/v1/units', {
+      const response = await fetch(`${baseUrl()}/units`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -64,7 +68,8 @@ export default function AddMaterialSheet() {
   // Submit the material to the API
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const response = await fetch('http://localhost:5001/api/v1/materials', {
+    setLoading(true); 
+    const response = await fetch(`${baseUrl()}/materials`, {
       method: 'POST',
       body: JSON.stringify(material),
       headers: { 'Content-Type': 'application/json' },
@@ -79,8 +84,16 @@ export default function AddMaterialSheet() {
         costPrice: 0,
         reorderPoint: 0,
       })
+      setLoading(false)
+      toast({
+        title : 'Raw material added successfully', 
+      })
     } else {
-      console.error('Failed to save material')
+      toast({
+        title : 'An error occurred', 
+        variant : 'destructive'
+      })
+      setLoading(false)
     }
   }
 
@@ -175,7 +188,7 @@ export default function AddMaterialSheet() {
           </div>
           <SheetFooter>
             <div className="fixed bottom-0 right-0 w-full sm:max-w-[540px] bg-background border-t p-4 flex justify-end space-x-2">
-              <Button type="submit">Save Material</Button>
+              <Button type="submit" disabled={loading}>Save Material</Button>
             </div>
           </SheetFooter>
         </form>

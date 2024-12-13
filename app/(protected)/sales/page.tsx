@@ -12,6 +12,7 @@ import { CalendarIcon, ChevronLeft, ChevronRight, Edit, Eye, Trash2 } from 'luci
 import { format } from "date-fns"
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
+import { baseUrl } from '@/utils/baseUrl'
 
 type Order = { 
   id : string; 
@@ -37,7 +38,7 @@ export default function OrderManagement() {
   const { data : orders = []} = useQuery<Order[]>({
     queryKey : ['ORDERS'],
     queryFn : async () => {
-      const fetchOrders = await fetch('http://localhost:5001/api/v1/sales', { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
+      const fetchOrders = await fetch(`${baseUrl()}/sales`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
       if(fetchOrders.ok){
         const fetchOrdersJson = await fetchOrders.json()
         return fetchOrdersJson
