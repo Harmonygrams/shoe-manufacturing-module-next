@@ -9,8 +9,10 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Textarea } from "@/components/ui/textarea"
 import { baseUrl } from '@/utils/baseUrl'
 import { useToast } from '@/hooks/use-toast'
+import { ErrorNotification } from '../error-message-badge'
 
 export default function AddUnitSheet() {
+  const [error, setError] = useState<string | null>(null); 
   const [loading, setLoading] = useState(false); 
   const { toast } = useToast(); 
   const [isOpen, setIsOpen] = useState(false)
@@ -45,10 +47,8 @@ export default function AddUnitSheet() {
         })
 
     }else{
-      toast({
-        title : 'An error occurred', 
-        variant : 'destructive'
-      })
+      const errorMessage = await saveMaterialToDb.json()
+      // setError()
       setLoading(false);
     }
   }

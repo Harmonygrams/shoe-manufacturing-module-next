@@ -11,11 +11,23 @@ import { Textarea } from "@/components/ui/textarea"
 import { useQuery } from '@tanstack/react-query'
 import { useToast } from '@/hooks/use-toast'
 import { baseUrl } from '@/utils/baseUrl'
+import { ErrorNotification } from '../error-message-badge'
 
 type Unit = {
-  id: string
+  id: number;
   name: string
   symbol: string
+}
+type ErrorMessage = {
+  message : string;
+}
+type Material = {
+  name : string; 
+  description: string;
+  openingStock: number;
+  unitId: string | number;
+  costPrice: number;
+  reorderPoint: number;
 }
 
 export default function AddMaterialSheet() {
@@ -23,7 +35,7 @@ export default function AddMaterialSheet() {
   const { toast } = useToast()
   const [isOpen, setIsOpen] = useState(false)
   const [units, setUnits] = useState<Unit[]>([])
-  const [material, setMaterial] = useState({
+  const [material, setMaterial] = useState<Material>({
     name: '',
     description: '',
     openingStock: 0,
@@ -62,9 +74,8 @@ export default function AddMaterialSheet() {
 
   // Handle changes for the unit selector
   const handleSelectChange = (value: string) => {
-    setMaterial(prev => ({ ...prev, unitId: value }))
+    setMaterial(prev => ({ ...prev, unitId: parseInt(value)}))
   }
-
   // Submit the material to the API
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -89,8 +100,9 @@ export default function AddMaterialSheet() {
         title : 'Raw material added successfully', 
       })
     } else {
+      const errorMessage = await response.json() as ErrorMessage
       toast({
-        title : 'An error occurred', 
+        title : errorMessage.message, 
         variant : 'destructive'
       })
       setLoading(false)
@@ -149,13 +161,13 @@ export default function AddMaterialSheet() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="unit">Unit of Measure</Label>
-              <Select value={material.unitId} onValueChange={handleSelectChange}>
+              <Select value={material.unitId.toString()} onValueChange={handleSelectChange}>
                 <SelectTrigger id="unit">
                   <SelectValue placeholder="Select unit" />
                 </SelectTrigger>
                 <SelectContent>
                   {units.map(unit => (
-                    <SelectItem value={unit.id} key={unit.id}>
+                    <SelectItem value={unit.id.toString()} key={unit.id}>
                       {`${unit.name} (${unit.symbol})`}
                     </SelectItem>
                   ))}

@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { formatCurrency } from '@/helpers/currencyFormat'
-// import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from 'next/navigation'
 import { SelectGroup, SelectLabel } from '@radix-ui/react-select'
 import { baseUrl } from '@/utils/baseUrl'
@@ -21,10 +20,11 @@ type ProductSize = {
   quantity: number;
   cost: number;
 }
-
+type ErrorMessage = {
+  message : string;
+}
 type Product = {
   name: string;
-  sku: string;
   unitId: number | string;
   description: string;
   sizes: ProductSize[];
@@ -43,7 +43,6 @@ type Size = {
 export default function ProductsPage() {
   const [newProduct, setNewProduct] = useState<Product>({
     name: '',
-    sku: '',
     unitId: '',
     description: '',
     sizes: []
@@ -82,8 +81,12 @@ export default function ProductsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(product)
       })
-      if (!response.ok) throw new Error('Failed to save product')
-      return response.json()
+      if (!response.ok) {
+        const errorMessage = await response.json();
+        throw new Error(errorMessage.message)
+      }else{
+        return response.json()
+      }
     },
     onSuccess: () => {
       setTimeout(() => router.push('/products'), 500)
@@ -91,10 +94,11 @@ export default function ProductsPage() {
         title: "Product saved successfully",
       })
     },
-    onError: (error) => {
+    onError: (error : ErrorMessage) => {
+      
       toast({
-        title: "An error occurred",
-        variant: "destructive"
+        title: error.message,
+        variant: 'destructive'
       })
     }
   })
@@ -135,10 +139,10 @@ export default function ProductsPage() {
               <Label htmlFor="name">Product Name</Label>
               <Input id="name" name="name" value={newProduct.name} onChange={handleInputChange} />
             </div>
-            <div>
+            {/* <div>
               <Label htmlFor="sku">SKU</Label>
               <Input id="sku" name="sku" value={newProduct.sku} onChange={handleInputChange} />
-            </div>
+            </div> */}
             <div>
               <Label htmlFor="unit">Unit</Label>
               <Select value={newProduct.unitId.toString()} onValueChange={handleUnitChange}>
