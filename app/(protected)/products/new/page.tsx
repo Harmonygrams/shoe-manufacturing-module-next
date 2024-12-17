@@ -1,7 +1,6 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -11,12 +10,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { formatCurrency } from '@/helpers/currencyFormat'
 import { useRouter } from 'next/navigation'
-import { SelectGroup, SelectLabel } from '@radix-ui/react-select'
+import { SelectGroup } from '@radix-ui/react-select'
 import { baseUrl } from '@/utils/baseUrl'
 import { useToast } from '@/hooks/use-toast'
 
 type ProductSize = {
-  sizeId: number | string;
+  sizeId: number;
   quantity: number;
   cost: number;
 }
@@ -47,11 +46,6 @@ export default function ProductsPage() {
     description: '',
     sizes: []
   })
-  const [newSize, setNewSize] = useState<ProductSize>({
-    sizeId: '',
-    quantity: 0,
-    cost: 0
-  })
 
   const { toast } = useToast()
   const router = useRouter()
@@ -73,6 +67,17 @@ export default function ProductsPage() {
       return response.json()
     }
   })
+
+  useEffect(() => {
+    if (sizes.length > 0) {
+      const initialSizes = sizes.map(size => ({
+        sizeId: size.id,
+        quantity: 0,
+        cost: 0
+      }));
+      setNewProduct(prev => ({ ...prev, sizes: initialSizes }));
+    }
+  }, [sizes]);
 
   const saveProductMutation = useMutation({
     mutationFn: async (product: Product) => {
@@ -112,19 +117,13 @@ export default function ProductsPage() {
     setNewProduct(prev => ({ ...prev, unitId: parseInt(value) }))
   }
 
-  const handleSizeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setNewSize(prev => ({ ...prev, [name]: name === 'sizeId' ? parseInt(value) : parseFloat(value) }))
-  }
-
-  const addSize = () => {
-    if (newSize.sizeId && newSize.quantity > 0 && newSize.cost > 0) {
-      setNewProduct(prev => ({
-        ...prev,
-        sizes: [...prev.sizes, newSize]
-      }))
-      setNewSize({ sizeId: 0, quantity: 0, cost: 0 })
-    }
+  const handleSizeChange = (sizeId: number, field: 'quantity' | 'cost', value: number) => {
+    setNewProduct(prev => ({
+      ...prev,
+      sizes: prev.sizes.map(size => 
+        size.sizeId === sizeId ? { ...size, [field]: value } : size
+      )
+    }));
   }
 
   const saveProduct = () => {
@@ -165,43 +164,36 @@ export default function ProductsPage() {
           </div>
           <div className="mt-4">
             <h3 className="text-lg font-semibold mb-2">Sizes</h3>
-            {newProduct.sizes.length > 0 && (
-              <Table className="mb-4">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Cost</TableHead>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Size</TableHead>
+                  <TableHead>Quantity</TableHead>
+                  <TableHead>Cost</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {newProduct.sizes.map((size) => (
+                  <TableRow key={size.sizeId}>
+                    <TableCell>{sizes.find(s => s.id === size.sizeId)?.name}</TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={size.quantity}
+                        onChange={(e) => handleSizeChange(size.sizeId, 'quantity', parseInt(e.target.value))}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={size.cost}
+                        onChange={(e) => handleSizeChange(size.sizeId, 'cost', parseFloat(e.target.value))}
+                      />
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {newProduct.sizes.map((size, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{sizes.find(s => s.id === size.sizeId)?.name}</TableCell>
-                      <TableCell>{size.quantity}</TableCell>
-                      <TableCell>{formatCurrency(size.cost)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-              <Select value={newSize.sizeId.toString()} onValueChange={(value) => handleSizeInputChange({ target: { name: 'sizeId', value } } as React.ChangeEvent<HTMLInputElement>)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select size" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sizes.map(size => (
-                    <SelectItem key={size.id} value={size.id.toString()}>{size.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input type="number" placeholder="Quantity" name="quantity" value={newSize.quantity || ''} onChange={handleSizeInputChange} />
-              <Input type="number" placeholder="Cost" name="cost" value={newSize.cost || ''} onChange={handleSizeInputChange} />
-            </div>
-            <Button onClick={addSize} className="mb-4 rounded-full w-8 h-8 p-0" variant="outline">
-              <Plus className="h-4 w-4" />
-            </Button>
+                ))}
+              </TableBody>
+            </Table>
           </div>
           <div className='flex justify-end mt-10'>
             <Button onClick={saveProduct} className="" disabled={saveProductMutation.isLoading}>
@@ -211,3 +203,4 @@ export default function ProductsPage() {
     </div>
   )
 }
+

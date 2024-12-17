@@ -17,6 +17,9 @@ import { formatCurrency } from '@/helpers/currencyFormat'
 import { baseUrl } from '@/utils/baseUrl'
 import { useToast } from '@/hooks/use-toast'
 
+type ErrorMessage = {
+  message : string;
+}
 type Product = {
   id : string; 
   name : string;
@@ -107,8 +110,9 @@ export default function AddBOMPage() {
       })
       window.location.href = "/bom"
     }else{
+      const errorMessage = await saveBom.json() as ErrorMessage;
       toast({
-        title : "An error occurred", 
+        title : errorMessage.message, 
         variant : 'destructive'
       })
       setIsLoading(false); 
@@ -250,6 +254,7 @@ export default function AddBOMPage() {
             onChange={(e) => setQuantity(parseInt(e.target.value))}
             min={1}
             className="mt-1"
+            disabled ={true}
           />
         </div>
         <Card>

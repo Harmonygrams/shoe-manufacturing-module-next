@@ -50,7 +50,7 @@ type Size = {
 }
 type Color = { 
   id : string; 
-  name : string; 
+  name : string;
 }
 
 type ProductItem = {
@@ -119,60 +119,66 @@ export default function SalesOrderPage() {
     ]
   })
   const saveOrderToDb = useMutation({
-    mutationFn : async (payload : string) => {
-      setIsLoading(true);
-      const addToDb = await fetch(`${baseUrl()}/sales`, { method : 'POST', body: payload, headers : { 'Content-Type' : 'Application/json'}})
-      if(addToDb.ok){
-        const addToDbJson = await addToDb.json()
-        return addToDbJson
-      }else{
-        
+    mutationFn: async (payload: string) => {
+      setIsLoading(true)
+      const response = await fetch(`${baseUrl()}/sales`, { 
+        method: 'POST', 
+        body: payload, 
+        headers: { 'Content-Type': 'application/json' }
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'An error occurred while saving the order')
       }
+      return response.json()
     },
-    onSuccess : () => {
-      window.location.href = '/sales'
+    onSuccess: () => {
       setIsLoading(false)
-        toast({
-          title : "Sales added successfully"
-        })
+      toast({
+        title: "Sales order added successfully"
+      })
+      setTimeout(() => {
+        window.location.href = '/sales'
+      }, 1000)
     },
-    onError : () => {
+    onError: (error: Error) => {
       setIsLoading(false)
-        toast({
-          title : "An occurred occurred"
-        })
+      toast({
+        title: "An error occurred",
+        description: error.message,
+        variant: "destructive"
+      })
     }
   })
-  async function handleSaveSalesOrder () {
-    const products = selectedProducts.map(product => {
-      const productSizes =  product.items.map(productItem => {
-        const colorId = Number(productItem.color);
-        return {
-          sizeId : productItem.size.id.toString(), 
-          colorId : colorId,
-          quantity : productItem.quantity, 
-          cost : productItem.cost
-        }
+  async function handleSaveSalesOrder() {
+    if (!customer || !orderDate || selectedProducts.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields and add at least one product.",
+        variant: "destructive"
       })
-      return {
-        productId : product.id.toString(),
-        productSizes
-      }
-    })    
-    setOrder({
-      customerId : customer, 
-      status : status,
-      transactionDate : orderDate,
-      products
-    })
-    if(order){
-      console.log(order)
-      saveOrderToDb.mutate(JSON.stringify(order), {
-        // onSuccess : () => {
-        //   window.location.href = "/sales-orders"
-        // }
-      }); 
+      return
     }
+
+    const products = selectedProducts.map(product => ({
+      productId: product.id.toString(),
+      productSizes: product.items.map(item => ({
+        sizeId: item.size.id.toString(),
+        colorId: parseInt(item.color.id),
+        quantity: item.quantity,
+        cost: item.cost
+      }))
+    }))
+
+    const orderData = {
+      customerId: customer,
+      status: status,
+      transactionDate: orderDate,
+      products
+    }
+
+    setOrder(orderData)
+    saveOrderToDb.mutate(JSON.stringify(orderData))
   }
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(productSearch.toLowerCase())
@@ -180,8 +186,7 @@ export default function SalesOrderPage() {
 
   const addProduct = (productId: string) => {
     const product = products.find(p => p.id === productId)
-    console.log(product); 
-    if (product) {
+    if (product && colors.length > 0) {
       setSelectedProducts([...selectedProducts, {
         id: product.id,
         name: product.name,
@@ -190,7 +195,7 @@ export default function SalesOrderPage() {
           size: product.sizes[0],
           color: colors[0],
           quantity: 1,
-          cost : product.sizes[0].cost
+          cost: product.sizes[0].cost
         }]
       }])
     }
@@ -216,19 +221,20 @@ export default function SalesOrderPage() {
     const currentItem = newSelectedProducts[productIndex].items[itemIndex]
     
     if (field === 'size') {
-      // Find the product
       const product = products.find(p => p.id === currentItem.id)
       if (product) {
-        // Find the selected size object
         const selectedSize = product.sizes.find(size => size.id === value)
         if (selectedSize) {
-          // Update both size and cost
           currentItem.size = selectedSize
           currentItem.cost = selectedSize.cost
         }
       }
+    } else if (field === 'color') {
+      const selectedColor = colors.find(c => c.id === value)
+      if (selectedColor) {
+        currentItem.color = selectedColor
+      }
     } else {
-      // Handle other field updates normally
       currentItem[field] = value as never
     }
     setSelectedProducts(newSelectedProducts)
@@ -245,9 +251,6 @@ export default function SalesOrderPage() {
   const calculateSubtotal = (items: ProductItem[]) => {
     return items.reduce((sum, item) => sum + item.quantity * item.size.cost, 0)
   }
-  const calculateSubpairs = ((items : ProductItem[]) => {
-    return items.reduce((sum, item) => sum + item.quantity, 0)
-  })
   const calculateTotal = () => {
     return selectedProducts.reduce((sum, product) => sum + calculateSubtotal(product.items), 0)
   }
@@ -255,38 +258,6 @@ export default function SalesOrderPage() {
   const calculateTotalPairs = () => {
     return selectedProducts.reduce((sum, product) => sum + product.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0)
   }
-  // useEffect(() => {
-  //   // Get all bills of materials for selected products
-  //   const allMaterials = selectedProducts
-  //     .map(selectedProduct => {
-  //       const product = products.find(p => p.id === selectedProduct.id);
-  //       return product?.bom || [];
-  //     })
-  //     .flat();
-  //   console.log('here are all the materials ', allMaterials)
-  //   // Create a map to combine duplicates and sum quantities
-  //   const materialsMap = allMaterials.reduce((acc, material) => {
-  //     if (!material) return acc;
-      
-  //     if (acc.has(material.id)) {
-  //       const existingMaterial = acc.get(material.id);
-  //       acc.set(material.id, {
-  //         ...existingMaterial,
-  //         quantityNeeded: existingMaterial.quantityNeeded + material.quantityNeeded
-  //       });
-  //     } else {
-  //       acc.set(material.id, { ...material });
-  //     }
-      
-  //     return acc;
-  //   }, new Map());
-
-  //   // Convert map back to array
-  //   const updatedMaterials = Array.from(materialsMap.values());
-  //   //Update quantites 
-    
-  //   setRawMaterials(updatedMaterials);
-  // }, [selectedProducts ]);
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">Create Sales Order</h1>
@@ -343,7 +314,7 @@ export default function SalesOrderPage() {
         </div>
       </div>
 
-      <div className="mb-6">
+      <div className="mb-6 relative">
         <Label htmlFor="productSearch" className="text-lg font-semibold mb-2 block">Search for item no.</Label>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -357,7 +328,7 @@ export default function SalesOrderPage() {
           />
         </div>
         {productSearch && (
-          <div className="mt-2 border rounded-md max-h-60 overflow-y-auto">
+          <div className="absolute z-10 mt-1 w-full bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
             {filteredProducts.map(product => (
               <div
                 key={product.id}
@@ -413,7 +384,7 @@ export default function SalesOrderPage() {
                           onValueChange={(value) => updateProductItem(productIndex, itemIndex, 'color', value)}
                         >
                           <SelectTrigger>
-                            <SelectValue />
+                            <SelectValue placeholder={item.color.name} />
                           </SelectTrigger>
                           <SelectContent>
                             {colors.map((color) => (
@@ -426,8 +397,9 @@ export default function SalesOrderPage() {
                         <Input
                           type="number"
                           value={item.quantity}
-                          onChange={(e) => updateProductItem(productIndex, itemIndex, 'quantity', parseInt(e.target.value))}
-                          min={1}
+                          onChange={(e) => updateProductItem(productIndex, itemIndex, 'quantity', parseFloat(e.target.value))}
+                          min={0}
+                          step={0.01}
                         />
                       </TableCell>
                       <TableCell>{formatCurrency(item.size.cost)}</TableCell>
@@ -453,53 +425,21 @@ export default function SalesOrderPage() {
           </CardContent>
         </Card>
       ))}
-
-      {/* <Card className="mt-8">
-        <CardHeader>
-          <CardTitle>Bill of Materials Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Material</TableHead>
-                  <TableHead>Quantity Needed</TableHead>
-                  <TableHead>Available Quantity</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              {isLoadingBom ? <div>Loading bill of materials</div> : 
-              <TableBody>
-                {rawMaterials.map((material) => (
-                  <TableRow key={material.name}>
-                    <TableCell>{material.name}</TableCell>
-                    <TableCell>{material.quantityNeeded}</TableCell>
-                    <TableCell>{material.quantityAvailable}</TableCell>
-                    <TableCell>
-                      {material.quantityAvailable >= material.quantityNeeded ? (
-                        <span className="text-green-600">Surplus: {material.quantityAvailable - material.quantityNeeded}</span>
-                      ) : (
-                        <span className="text-red-600">Needed: {material.quantityNeeded - material.quantityAvailable}</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-              }
-            </Table>
+      
+      <div className="mt-6 bg-gray-50 p-6 rounded-lg shadow">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+          <div className="w-full md:w-auto order-2 md:order-1">
+            <p className="text-lg"><span className="font-semibold">Total Pairs:</span> {calculateTotalPairs()}</p>
+            <p className="text-2xl font-bold mt-2"><span>Total Amount:</span> {formatCurrency(calculateTotal())}</p>
           </div>
-        </CardContent>
-      </Card> */}
-      <div className="mt-6 flex flex-col md:flex-row justify-between items-start md:items-center sticky bottom-0 bg-background p-4 border-t">
-  <div className="w-full md:w-auto order-1 md:order-1 bg-muted p-4 rounded-lg mb-4 md:mb-0">
-    <p className="text-lg"><span className="font-semibold">Total Pairs:</span> {calculateTotalPairs()}</p>
-    <p className="text-2xl font-bold"><span>Total Amount:</span> {formatCurrency(calculateTotal())}</p>
-  </div>
-  <div className="w-full md:w-auto order-2 md:order-2">
-    <Button className="w-full md:w-auto" onClick={handleSaveSalesOrder} disabled={isLoading}>Save Order</Button>
-  </div>
-</div>
+          <div className="w-full md:w-auto order-1 md:order-2 mb-4 md:mb-0">
+            <Button className="w-full md:w-auto" onClick={handleSaveSalesOrder} disabled={isLoading}>
+              {isLoading ? "Saving..." : "Save Order"}
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
+
