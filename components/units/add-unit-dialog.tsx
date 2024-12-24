@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Textarea } from "@/components/ui/textarea"
 import { baseUrl } from '@/utils/baseUrl'
 import { useToast } from '@/hooks/use-toast'
-import { ErrorNotification } from '../error-message-badge'
+import { useQueryClient } from '@tanstack/react-query'
 
 export default function AddUnitSheet() {
   const [error, setError] = useState<string | null>(null); 
@@ -21,12 +21,12 @@ export default function AddUnitSheet() {
     description: '',
     symbol : ''
   })
+  const queryClient = useQueryClient()
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setUnit(prev => ({ ...prev, [name]: value }))
   }
-
 
   async function handleSubmit (e: React.FormEvent) {
     setLoading(true); 
@@ -45,10 +45,10 @@ export default function AddUnitSheet() {
         toast({
           title : 'Unit added successfully'
         })
-
+        queryClient.invalidateQueries(["UNITS"])
     }else{
       const errorMessage = await saveMaterialToDb.json()
-      // setError()
+      setError(errorMessage.message)
       setLoading(false);
     }
   }

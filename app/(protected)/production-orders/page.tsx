@@ -4,29 +4,30 @@ import { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/badge"
+import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, ChevronLeft, ChevronRight, Edit, Eye, Trash2 } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { CalendarIcon, ChevronLeft, ChevronRight, MoreHorizontal, FileText, Eye, Trash2 } from 'lucide-react'
 import { format } from "date-fns"
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { baseUrl } from '@/utils/baseUrl'
 
 type Order = { 
-  id : string; 
-  customerName : string; 
-  orderDate : string; 
-  status : string; 
-  quantity : string; 
-  products : Product[]
-}
-type Product = {
-  productId : number;  
-  quantity : number;
+  id: string; 
+  customerName: string; 
+  orderDate: string; 
+  status: string; 
+  quantity: string; 
+  products: Product[]
 }
 
+type Product = {
+  productId: number;  
+  quantity: number;
+}
 
 export default function OrderManagement() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -35,16 +36,19 @@ export default function OrderManagement() {
   const [endDate, setEndDate] = useState<Date>()
   const [currentPage, setCurrentPage] = useState(1)
   const ordersPerPage = 10
-  const { data : orders = []} = useQuery<Order[]>({
-    queryKey : ['ORDERS'],
-    queryFn : async () => {
-      const fetchOrders = await fetch(`${baseUrl()}/sales`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
-      if(fetchOrders.ok){
+
+  const { data: orders = [] } = useQuery<Order[]>({
+    queryKey: ['ORDERS'],
+    queryFn: async () => {
+      const fetchOrders = await fetch(`${baseUrl()}/orders`, { method: 'GET', headers: { 'Content-Type': 'application/json' }})
+      if (fetchOrders.ok) {
         const fetchOrdersJson = await fetchOrders.json()
         return fetchOrdersJson
       }
+      throw new Error('Failed to fetch orders')
     }
   })
+
   const filteredOrders = orders.filter(order => 
     order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) &&
     (statusFilter === '' || order.status === statusFilter) &&
@@ -59,21 +63,36 @@ export default function OrderManagement() {
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber)
 
   const statusColors: { [key: string]: string } = {
-    'in-production': 'bg-yellow-100 text-yellow-800',
+    'processing': 'bg-yellow-100 text-yellow-800',
     'pending': 'bg-blue-100 text-blue-800',
-    'fulfilled': 'bg-purple-100 text-purple-800',
+    'fulfilled': 'bg-green-100 text-green-800',
+  }
+
+  const handleCreateInvoice = (orderId: string) => {
+    console.log('Create Invoice for order:', orderId)
+    // Implement create invoice logic here
+  }
+
+  const handleViewOrder = (orderId: string) => {
+    console.log('View order:', orderId)
+    // Implement view order logic here
+  }
+
+  const handleDeleteOrder = (orderId: string) => {
+    console.log('Delete order:', orderId)
+    // Implement delete order logic here
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Orders</h1>
+        <h1 className="text-3xl font-bold">Production Orders</h1>
         
-          <Button className="bg-primary hover:bg-primary/90" asChild>
-            <Link href='/sales/new'>
-              Add New Order
-            </Link>
-          </Button>
+        <Button className="bg-primary hover:bg-primary/90" asChild>
+          <Link href='/production-orders/new'>
+            Add New Order
+          </Link>
+        </Button>
       </div>
 
       <div className="mb-6 flex flex-col sm:flex-row gap-4">
@@ -90,7 +109,7 @@ export default function OrderManagement() {
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="in-production">In Production</SelectItem>
+            <SelectItem value="processing">Processing</SelectItem>
             <SelectItem value="fulfilled">Fulfilled</SelectItem>
           </SelectContent>
         </Select>
@@ -144,20 +163,30 @@ export default function OrderManagement() {
                 </TableCell>
                 <TableCell>{order.products.reduce((init, sum) => init + sum.quantity, 0)}</TableCell>
                 <TableCell>
-                  <div className="flex space-x-2">
-                    <Button variant="outline" size="icon">
-                      <Edit className="h-4 w-4" />
-                      <span className="sr-only">Edit</span>
-                    </Button>
-                    <Button variant="outline" size="icon">
-                      <Eye className="h-4 w-4" />
-                      <span className="sr-only">View Details</span>
-                    </Button>
-                    <Button variant="outline" size="icon">
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">Delete</span>
-                    </Button>
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <span className="sr-only">Open menu</span>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-[160px]">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={() => handleCreateInvoice(order.id)}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        <span>Create Invoice</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleViewOrder(order.id)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        <span>View</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleDeleteOrder(order.id)} className="text-red-600">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>Delete</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}
@@ -189,3 +218,4 @@ export default function OrderManagement() {
     </div>
   )
 }
+

@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-type ProductionStatus = 'processing' | 'cutting' | 'sticking' | 'lasting' | 'finishing' | 'delivery' | 'done'
+type ProductionStatus = 'cutting' | 'sticking' | 'lasting' | 'finished'
 
 type Production = {
   id: number
@@ -19,7 +19,7 @@ export function ProductionSummary({ productions }: ProductionSummaryProps) {
     return acc
   }, {} as Record<ProductionStatus, number>)
 
-  const statuses: ProductionStatus[] = ['processing', 'cutting', 'sticking', 'lasting', 'finishing', 'delivery', 'done']
+  const statuses: ProductionStatus[] = ['cutting', 'sticking', 'lasting', 'finished']
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

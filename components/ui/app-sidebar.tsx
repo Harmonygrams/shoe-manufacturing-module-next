@@ -69,13 +69,13 @@ const transactions = [
     icon : ShoppingBag,
   }, 
   {
-    title: 'Sales Orders',
-    url: '/sales',
+    title: 'Production Orders',
+    url: '/production-orders',
     icon: BookText,
   },
   {
-    title: 'Production',
-    url: '/production',
+    title: 'Manufacuturing',
+    url: '/manufacturing',
     icon: NotebookTabs
   },
 ]

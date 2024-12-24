@@ -34,6 +34,7 @@ type RawMaterial = {
   quantityNeeded: number;
   quantityAvailable: number;
   quantityPerUnit: number;
+  materialCost : number;
 }
 
 type SalesOrder = {
@@ -55,7 +56,9 @@ type ManufacturingData = {
   laborCost: number;
 }
 
+
 export default function AddManufacturingPage() {
+  const [status, setStatus] = useState<string>()
   const { toast } = useToast()
   const [manufacturingData, setManufacturingData] = useState<ManufacturingData>({
     date: new Date(),
@@ -79,7 +82,7 @@ export default function AddManufacturingPage() {
   const { data: salesOrders = [] } = useQuery<SalesOrder[]>({
     queryKey: ['SALES'],
     queryFn: async () => {
-      const response = await fetch(`${baseUrl()}/sales`, { method: 'GET', headers: { 'Content-Type': 'Application/json' } })
+      const response = await fetch(`${baseUrl()}/orders?orderStatus=pending`, { method: 'GET', headers: { 'Content-Type': 'Application/json' } })
       if (!response.ok) throw new Error('Failed to fetch sales orders')
       return response.json()
     },
@@ -127,7 +130,7 @@ export default function AddManufacturingPage() {
     if (salesOrder.id) {
       setIsLoading(true)
       try {
-        const response = await fetch(`${baseUrl()}/sales/${salesOrder.id}`, {
+        const response = await fetch(`${baseUrl()}/orders/${salesOrder.id}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
@@ -207,11 +210,14 @@ export default function AddManufacturingPage() {
 
       saveInDb = {
         productionDate: new Date(),
-        status: 'finishing',
+        status: status,
+        orderType : 'sales', 
+        orderId : selectedSalesOrder.id,
         products: selectedSalesOrder.products.map((product) => ({
           productId: product.productId,
           sizeId: product.sizeId,
           colorId: product.colorId,
+          unitCost : product.rawMaterials.reduce((init, accum) => (init + accum.materialCost), 0),
           quantity: product.quantity,
         })),
         rawMaterials: storeRawMaterials.map((rawMaterial) => ({
@@ -222,7 +228,7 @@ export default function AddManufacturingPage() {
     } else {
       saveInDb = {
         productionDate: manufacturingData.date,
-        status: 'finishing',
+        status: status,
         products: manufacturingData.items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -232,7 +238,7 @@ export default function AddManufacturingPage() {
     }
 
     try {
-      const response = await fetch(`${baseUrl()}/productions`, {
+      const response = await fetch(`${baseUrl()}/manufacturing`, {
         method: 'POST',
         body: JSON.stringify(saveInDb),
         headers: { 'Content-Type': 'Application/json' }
@@ -242,7 +248,7 @@ export default function AddManufacturingPage() {
           title: "Production Added Successfully",
           description: "You have successfully added a new production",
         })
-        window.location.href = '/production'
+        window.location.href = '/manufacturing'
       } else {
         const errorMessage = await response.json()
         throw new Error(errorMessage)
@@ -262,8 +268,7 @@ export default function AddManufacturingPage() {
     <div className="container mx-auto px-4 py-8">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="sales-orders">Add Production from Sales Orders</TabsTrigger>
-          <TabsTrigger value="manual-entry">Add Production Manually</TabsTrigger>
+          <TabsTrigger value="sales-orders">Add Production Orders</TabsTrigger>
         </TabsList>
         <TabsContent value="sales-orders">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -274,7 +279,7 @@ export default function AddManufacturingPage() {
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-6">
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-end space-x-4 flex-wrap">
                       <div className="flex-1">
                         <Label htmlFor="manufacturingDate">Manufacturing Date</Label>
                         <Input
@@ -283,6 +288,20 @@ export default function AddManufacturingPage() {
                           value={manufacturingData.date.toISOString().split('T')[0]}
                           onChange={(e) => handleDateChange(new Date(e.target.value))}
                         />
+                      </div>
+                      <div className="flex-1">
+                        <Label htmlFor="status">Status</Label>
+                        <Select value={status} onValueChange={setStatus}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cutting">Cutting</SelectItem>
+                            <SelectItem value="sticking">Sticking</SelectItem>
+                            <SelectItem value="lasting">Lasting</SelectItem>
+                            <SelectItem value="finished">Finished</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       {selectedSalesOrder && (
                         <Button type="button" onClick={handleUnselectSalesOrder} variant="outline">
@@ -324,8 +343,8 @@ export default function AddManufacturingPage() {
                                   <TableCell>{item.sizeName}</TableCell>
                                   <TableCell>{item.colorName}</TableCell>
                                   <TableCell>{item.quantity}</TableCell>
-                                  <TableCell>{formatCurrency(item.cost)}</TableCell>
-                                  <TableCell>{formatCurrency(totalCost)}</TableCell>
+                                  <TableCell>{formatCurrency(item.rawMaterials.reduce((init, accum) => init + accum.materialCost, 0))}</TableCell>
+                                  <TableCell>{formatCurrency(item.rawMaterials.reduce((init, accum) => init + accum.materialCost, 0) * item.quantity)}</TableCell>
                                 </TableRow>
                               )
                             })
@@ -408,7 +427,7 @@ export default function AddManufacturingPage() {
         <div>
           <Card>
             <CardHeader>
-              <CardTitle className="text-xl font-bold">Sales Orders</CardTitle>
+              <CardTitle className="text-xl font-bold">Production Orders</CardTitle>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[calc(100vh-200px)]">

@@ -1,40 +1,56 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Plus, Search, Pencil, Trash2, Eye } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import Link from 'next/link';
+import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { baseUrl } from '@/utils/baseUrl'
+import { formatCurrency } from '@/helpers/currencyFormat'
+import { ProductDetailsDialog } from '@/components/products/product-details-dialog'
+
 type Product = { 
-  id : number;
-  name : string; 
-  quantity : string | number;
-  unit : string; 
-  cost : number;
+  id: number;
+  name: string; 
+  quantity: string | number;
+  sellingPrice: number;
+  unit: string; 
+  cost: number;
 }
+
 export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const { data : products = [] } = useQuery<Product[]>({
-    queryKey : ['PRODUCTS'],
-    queryFn : async () => {
-      const fetchMaterials = await fetch(`${baseUrl()}/products`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
-      if(fetchMaterials.ok){
-        const fetchMaterialsJson = await fetchMaterials.json()
-        return fetchMaterialsJson
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+
+  const { data: products = [] } = useQuery<Product[]>({
+    queryKey: ['PRODUCTS'],
+    queryFn: async () => {
+      const fetchProducts = await fetch(`${baseUrl()}/products`, { method: 'GET', headers: { 'Content-Type': 'application/json' }})
+      if (fetchProducts.ok) {
+        const fetchProductsJson = await fetchProducts.json()
+        return fetchProductsJson
       }
+      throw new Error('Failed to fetch products')
     }
   })
-  const materialsPerPage = 5
-  const indexOfLastMaterial = currentPage * materialsPerPage
-  const indexOfFirstMaterial = indexOfLastMaterial - materialsPerPage
-  const currentProducts = products
-    .filter(products => products.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    .slice(indexOfFirstMaterial, indexOfLastMaterial)
 
-  const totalPages = Math.ceil(products.length / materialsPerPage)
+  const productsPerPage = 5
+  const indexOfLastProduct = currentPage * productsPerPage
+  const indexOfFirstProduct = indexOfLastProduct - productsPerPage
+  const currentProducts = products
+    .filter(product => product.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .slice(indexOfFirstProduct, indexOfLastProduct)
+
+  const totalPages = Math.ceil(products.length / productsPerPage)
+
+  const handleViewProduct = (productId: number) => {
+    setSelectedProductId(productId)
+    setIsDialogOpen(true)
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">Products</h1>
@@ -62,8 +78,9 @@ export default function ProductsPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Quantity</TableHead>
               <TableHead>Unit of Measure</TableHead>
+              <TableHead>Quantity</TableHead>
+              <TableHead>Selling price</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -71,17 +88,18 @@ export default function ProductsPage() {
             {currentProducts.map((product) => (
               <TableRow key={product.id}>
                 <TableCell>{product.name}</TableCell>
-                <TableCell>{product.quantity}</TableCell>
                 <TableCell>{product.unit}</TableCell>
+                <TableCell>{product.quantity}</TableCell>
+                <TableCell>{formatCurrency(product.sellingPrice)}</TableCell>
                 <TableCell>
                   <div className="flex space-x-2">
-                    <Button variant="ghost" size="icon" aria-label="View material details">
+                    <Button variant="ghost" size="icon" aria-label="View product details" onClick={() => handleViewProduct(product.id)}>
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" aria-label="Edit material">
+                    <Button variant="ghost" size="icon" aria-label="Edit product">
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" aria-label="Delete material">
+                    <Button variant="ghost" size="icon" aria-label="Delete product">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -94,7 +112,7 @@ export default function ProductsPage() {
 
       <div className="flex justify-between items-center mt-4">
         <div>
-          Showing {indexOfFirstMaterial + 1} to {Math.min(indexOfLastMaterial, products.length)} of {products.length} materials
+          Showing {indexOfFirstProduct + 1} to {Math.min(indexOfLastProduct, products.length)} of {products.length} products
         </div>
         <div className="flex space-x-2">
           <Button
@@ -111,6 +129,13 @@ export default function ProductsPage() {
           </Button>
         </div>
       </div>
+
+      <ProductDetailsDialog 
+        productId={selectedProductId}
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+      />
     </div>
   )
 }
+

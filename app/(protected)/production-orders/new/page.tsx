@@ -27,7 +27,8 @@ type OrderProduct2 = {
 
 }
 type Order = {
-  customerId : string, 
+  customerId? : string, 
+  orderType: 'sale' | 'manufacturing',
   transactionDate : Date | undefined, 
   status : string,
   products : OrderProduct2[]
@@ -40,7 +41,6 @@ type Product = {
   id : string; 
   name : string; 
   sizes : Size[];
-  bom : RawMaterial[];
 }
 
 type Size = { 
@@ -73,16 +73,15 @@ type RawMaterial = {
   quantityNeeded : number; 
   quantityAvailable : number; 
 }
-export default function SalesOrderPage() {
-  const [isLoadingBom, setIsLoadingBom] = useState<boolean>(false); 
+export default function ProductionOrderPage() {
   const [isLoading, setIsLoading ] = useState<boolean>(false); 
   const [customer, setCustomer] = useState<string>('')
   const [orderDate, setOrderDate] = useState<Date | undefined>(new Date())
-  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([])
   const [status, setStatus] = useState('pending')
   const [productSearch, setProductSearch] = useState('')
   const [selectedProducts, setSelectedProducts] = useState<OrderProduct[]>([])
   const [order,  setOrder ] = useState<Order>()
+  const [orderType, setOrderType] = useState<'sale' | 'manufacturing'>('sale')
   // Fetch customers from db 
   const { data : customers = []} = useQuery<Customer[]>({
     queryKey : ['CUSTOMERS'], 
@@ -121,7 +120,7 @@ export default function SalesOrderPage() {
   const saveOrderToDb = useMutation({
     mutationFn: async (payload: string) => {
       setIsLoading(true)
-      const response = await fetch(`${baseUrl()}/sales`, { 
+      const response = await fetch(`${baseUrl()}/orders`, { 
         method: 'POST', 
         body: payload, 
         headers: { 'Content-Type': 'application/json' }
@@ -135,10 +134,10 @@ export default function SalesOrderPage() {
     onSuccess: () => {
       setIsLoading(false)
       toast({
-        title: "Sales order added successfully"
+        title: "Production order added successfully"
       })
       setTimeout(() => {
-        window.location.href = '/sales'
+        window.location.href = '/production-orders'
       }, 1000)
     },
     onError: (error: Error) => {
@@ -150,11 +149,20 @@ export default function SalesOrderPage() {
       })
     }
   })
-  async function handleSaveSalesOrder() {
-    if (!customer || !orderDate || selectedProducts.length === 0) {
+  async function handleSaveProductionOrder() {
+    if (!orderDate || selectedProducts.length === 0) {
       toast({
         title: "Error",
         description: "Please fill in all required fields and add at least one product.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (orderType === 'sale' && !customer) {
+      toast({
+        title: "Error",
+        description: "Please select a customer for sales orders.",
         variant: "destructive"
       })
       return
@@ -171,13 +179,14 @@ export default function SalesOrderPage() {
     }))
 
     const orderData = {
-      customerId: customer,
+      ...(orderType === 'sale' && { customerId: customer }),
+      orderType,
       status: status,
       transactionDate: orderDate,
       products
     }
 
-    setOrder(orderData)
+    setOrder(orderData as Order)
     saveOrderToDb.mutate(JSON.stringify(orderData))
   }
   const filteredProducts = products.filter(product =>
@@ -260,57 +269,76 @@ export default function SalesOrderPage() {
   }
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Create Sales Order</h1>
+      <h1 className="text-3xl font-bold mb-6">Create Production Order</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div>
-          <Label htmlFor="customer">Customer</Label>
-          <Select value={customer} onValueChange={setCustomer}>
-            <SelectTrigger id="customer">
-              <SelectValue placeholder="Select customer" />
-            </SelectTrigger>
-            <SelectContent>
-              {customers.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{`${c.customerName}`}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div className="mb-6">
+        <div className="flex space-x-4 mb-6">
+          <Button
+            variant={orderType === 'sale' ? 'default' : 'outline'}
+            onClick={() => setOrderType('sale')}
+          >
+            Customer Order
+          </Button>
+          <Button
+            variant={orderType === 'manufacturing' ? 'default' : 'outline'}
+            onClick={() => setOrderType('manufacturing')}
+          >
+            In-house Manufacturing
+          </Button>
         </div>
 
-        <div>
-          <Label htmlFor="date">Order Date</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={"outline"}
-                className={`w-full justify-start text-left font-normal ${!orderDate && "text-muted-foreground"}`}
-              >
-                {orderDate ? format(orderDate, "PPP") : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={orderDate}
-                onSelect={setOrderDate}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {orderType === 'sale' && (
+            <div>
+              <Label htmlFor="customer">Customer</Label>
+              <Select value={customer} onValueChange={setCustomer}>
+                <SelectTrigger id="customer">
+                  <SelectValue placeholder="Select customer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.customerName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-        <div>
-          <Label htmlFor="status">Status</Label>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger id="status">
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="fulfilled">Fulfilled</SelectItem>
-            </SelectContent>
-          </Select>
+          <div>
+            <Label htmlFor="date">Production Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={`w-full justify-start text-left font-normal ${!orderDate && "text-muted-foreground"}`}
+                >
+                  {orderDate ? format(orderDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={orderDate}
+                  onSelect={setOrderDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div>
+            <Label htmlFor="status">Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger id="status">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="fulfilled">Fulfilled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -433,8 +461,8 @@ export default function SalesOrderPage() {
             <p className="text-2xl font-bold mt-2"><span>Total Amount:</span> {formatCurrency(calculateTotal())}</p>
           </div>
           <div className="w-full md:w-auto order-1 md:order-2 mb-4 md:mb-0">
-            <Button className="w-full md:w-auto" onClick={handleSaveSalesOrder} disabled={isLoading}>
-              {isLoading ? "Saving..." : "Save Order"}
+            <Button className="w-full md:w-auto" onClick={handleSaveProductionOrder} disabled={isLoading}>
+              {isLoading ? "Saving..." : "Save Production Order"}
             </Button>
           </div>
         </div>
