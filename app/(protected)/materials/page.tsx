@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import AddMaterialSheet from '@/components/materials/add-material-dialog';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatCurrency } from '@/helpers/currencyFormat';
 import { baseUrl } from '@/utils/baseUrl';
+import EditMaterialDialog from '@/components/materials/edit-material-dialog';
+import { DeleteDialog } from '@/components/materials/delete-material-dialog';
+import { toast } from '@/hooks/use-toast';
 
 type RawMaterial = {
   id: number;
@@ -23,9 +26,13 @@ export default function MaterialsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const materialsPerPage = 5;
+  const [selectedMaterial, setSelectedMaterial] = useState<RawMaterial>();
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data, isSuccess, isLoading, error, refetch } = useQuery({
-    queryKey: ['RAW_MATERIAL'],
+    queryKey: ['rawMaterials'],
     queryFn: async () => {
       const response = await fetch(`${baseUrl()}/materials`, {
         method: 'GET',
@@ -34,6 +41,28 @@ export default function MaterialsPage() {
       if (!response.ok) throw new Error('Failed to fetch materials');
       return response.json();
     },
+  });
+
+  const deleteMaterialMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`${baseUrl()}/materials/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete material');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['rawMaterials']);
+      toast({ title: "Success", description: "Material deleted successfully" });
+      setIsDeleteDialogOpen(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete material",
+        variant: "destructive"
+      });
+    }
   });
 
   const indexOfLastMaterial = currentPage * materialsPerPage;
@@ -52,6 +81,16 @@ export default function MaterialsPage() {
 
   const handleMaterialAdded = () => {
     refetch(); // Refetch materials after adding a new one
+  };
+
+  const handleEdit = (material: RawMaterial) => {
+    setSelectedMaterial(material);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDelete = (material: RawMaterial) => {
+    setSelectedMaterial(material);
+    setIsDeleteDialogOpen(true);
   };
 
   return (
@@ -98,13 +137,18 @@ export default function MaterialsPage() {
                     <TableCell>{formatCurrency(material.cost)}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Button variant="ghost" size="icon" aria-label="View material details">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" aria-label="Edit material">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleEdit(material)}
+                        >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" aria-label="Delete material">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleDelete(material)}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -142,6 +186,22 @@ export default function MaterialsPage() {
           </Button>
         </div>
       </div>
+
+      {selectedMaterial && <EditMaterialDialog
+        materialId={selectedMaterial.id}
+        onUpdate={() => {
+          queryClient.invalidateQueries(['rawMaterials']);
+          setIsEditDialogOpen(false);
+        }}
+      />}
+
+      <DeleteDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={() => selectedMaterial && deleteMaterialMutation.mutate(selectedMaterial.id)}
+        title="Delete Material"
+        description="Are you sure you want to delete this material? This action cannot be undone."
+      />
     </div>
   );
 }

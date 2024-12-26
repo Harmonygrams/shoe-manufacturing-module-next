@@ -5,29 +5,66 @@ import { Search, Pencil, Trash2 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import AddColorSheet from '@/components/colors/add-color-dialog'
 import { baseUrl } from '@/utils/baseUrl'
+import { EditColorDialog } from "@/components/colors/edit-color-dialog"
+import { toast } from "@/hooks/use-toast"
 
 // Mock data for Colors
 type Color = {
   id : number; 
   name : string; 
 }
+
 export default function ColorsPage() {
   const [colors, setColors] = useState<Color[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const { data, isLoading, isSuccess} = useQuery({
-    queryKey : ["Colors"],
-    queryFn : async () => {
-      const fetchColors = await fetch(`${baseUrl()}/colors`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
-      if(fetchColors.ok){
-        const fetchColorsJson = await fetchColors.json();
-        return fetchColorsJson;
+  const [selectedColor, setSelectedColor] = useState<Color | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const queryClient = useQueryClient()
+
+  const { data, isLoading, isSuccess } = useQuery({
+    queryKey: ["colors"],
+    queryFn: async () => {
+      const fetchColors = await fetch(`${baseUrl()}/colors`, { method: 'GET', headers: { 'Content-Type': 'application/json' } })
+      if (fetchColors.ok) {
+        const fetchColorsJson = await fetchColors.json()
+        return fetchColorsJson
       }
-    }, 
+    }
   })
+
+  const deleteColorMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`${baseUrl()}/colors/${id}`, {
+        method: 'DELETE'
+      })
+      if (!response.ok) throw new Error('Failed to delete color')
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['colors'])
+      toast({ title: "Success", description: "Color deleted successfully" })
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete color",
+        variant: "destructive"
+      })
+    }
+  })
+
+  const handleDelete = (color: Color) => {
+    deleteColorMutation.mutate(color.id)
+  }
+
+  const handleEdit = (color: Color) => {
+    setSelectedColor(color)
+    setIsEditDialogOpen(true)
+  }
 
   const colorsPerPage = 5
   const indexOfLastColor = currentPage * colorsPerPage
@@ -38,10 +75,11 @@ export default function ColorsPage() {
 
   const totalPages = Math.ceil(colors.length / colorsPerPage)
   useEffect(() => {
-    if(isSuccess){
+    if (isSuccess) {
       setColors(data)
     }
   }, [isLoading, isSuccess, data])
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">Colors</h1>
@@ -74,10 +112,10 @@ export default function ColorsPage() {
                 <TableCell>{color.name}</TableCell>
                 <TableCell>
                   <div className="flex space-x-2">
-                    <Button variant="ghost" size="icon" aria-label="Edit color">
+                    <Button variant="ghost" size="icon" aria-label="Edit color" onClick={() => handleEdit(color)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" aria-label="Delete color">
+                    <Button variant="ghost" size="icon" aria-label="Delete color" onClick={() => handleDelete(color)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -107,6 +145,12 @@ export default function ColorsPage() {
           </Button>
         </div>
       </div>
+
+      <EditColorDialog 
+        isOpen={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        color={selectedColor}
+      />
     </div>
   )
 }

@@ -40,12 +40,12 @@ export function DeleteConfirmation({
       })
 
       if (!response.ok) {
-        throw new Error('Failed to delete purchase')
+        throw new Error('Failed to delete item')
       }
 
       toast({
-        title: "Purchase deleted",
-        description: "The purchase has been successfully deleted.",
+        title: "Item deleted",
+        description: "The item has been successfully deleted.",
       })
       onDeleteSuccess()
       onClose()
@@ -53,7 +53,7 @@ export function DeleteConfirmation({
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to delete the purchase. Please try again.",
+        description: "Failed to delete the item. Please try again.",
         variant: "destructive",
       })
     } finally {

@@ -5,21 +5,34 @@ import { Search, Pencil, Trash2 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useQuery } from '@tanstack/react-query'
-import AddSizeSheet from '@/components/size/add-unit-dialog'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import {AddSizeSheet} from '@/components/size/add-size-dialog'
+import { EditSizeDialog } from "@/components/size/edit-size-dialog"
 import { baseUrl } from '@/utils/baseUrl'
+import { toast } from "@/hooks/use-toast"
 
 // Mock data for sizes
 type Size = {
   id : number; 
   name : string; 
 }
+type Unit = {
+  id: number
+  name: string
+  description: string
+  symbol: string
+}
+
 export default function SizesPage() {
   const [sizes, setSizes] = useState<Size[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [selectedSize, setSelectedSize] = useState<Size | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const queryClient = useQueryClient()
+
   const { data, isLoading, isSuccess} = useQuery({
-    queryKey : ["Sizes"],
+    queryKey : ["sizes" ],
     queryFn : async () => {
       const fetchSizes = await fetch(`${baseUrl()}/sizes`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
       if(fetchSizes.ok){
@@ -28,6 +41,37 @@ export default function SizesPage() {
       }
     }, 
   })
+
+  const deleteSizeMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`${baseUrl()}/sizes/${id}`, {
+        method: 'DELETE'
+      })
+      if (!response.ok) throw new Error('Failed to delete size')
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['sizes'])
+      toast({ title: "Success", description: "Size deleted successfully" })
+      window.location.href = '/sizes'
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete size",
+        variant: "destructive"
+      })
+    }
+  })
+
+  const handleDelete = (size: Size) => {
+    deleteSizeMutation.mutate(size.id)
+  }
+
+  const handleEdit = (size: Size) => {
+    setSelectedSize(size)
+    setIsEditDialogOpen(true)
+  }
 
   const sizesPerPage = 5
   const indexOfLastSize = currentPage * sizesPerPage
@@ -74,10 +118,10 @@ export default function SizesPage() {
                 <TableCell>{size.name}</TableCell>
                 <TableCell>
                   <div className="flex space-x-2">
-                    <Button variant="ghost" size="icon" aria-label="Edit size">
+                    <Button variant="ghost" size="icon" aria-label="Edit size" onClick={() => handleEdit(size)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" aria-label="Delete size">
+                    <Button variant="ghost" size="icon" aria-label="Delete size" onClick={() => handleDelete(size)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -107,6 +151,11 @@ export default function SizesPage() {
           </Button>
         </div>
       </div>
+      <EditSizeDialog 
+        isOpen={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        size={selectedSize}
+      />
     </div>
   )
 }

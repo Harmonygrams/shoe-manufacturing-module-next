@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useQuery } from '@tanstack/react-query'
 import { useToast } from '@/hooks/use-toast'
 import { baseUrl } from '@/utils/baseUrl'
-import { ErrorNotification } from '../error-message-badge'
+import { useQueryClient } from '@tanstack/react-query'
 
 type Unit = {
   id: number;
@@ -31,6 +31,7 @@ type Material = {
 }
 
 export default function AddMaterialSheet() {
+  const queryClient = useQueryClient()
   const [loading, setLoading] = useState<boolean>(false); 
   const { toast } = useToast()
   const [isOpen, setIsOpen] = useState(false)
@@ -95,10 +96,11 @@ export default function AddMaterialSheet() {
         costPrice: 0,
         reorderPoint: 0,
       })
-      setLoading(false)
+      setLoading(false); 
       toast({
         title : 'Raw material added successfully', 
       })
+      queryClient.invalidateQueries(['rawMaterials'])
     } else {
       const errorMessage = await response.json() as ErrorMessage
       toast({

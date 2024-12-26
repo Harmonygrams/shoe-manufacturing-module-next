@@ -11,7 +11,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { BookText, NotebookTabs, PackageSearch, Layers, Ruler, Receipt, PencilRuler, Brush, CircleUser, ShoppingBag } from 'lucide-react'
+import { BookText, NotebookTabs, PackageSearch, Layers, Ruler, Receipt, PencilRuler, Brush, CircleUser, ShoppingBag, TrendingUpDown, ChartPie } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 
@@ -35,6 +35,11 @@ const inventoryLinks = [
     title: 'Raw Materials',
     url: '/materials',
     icon: Layers,
+  },
+  {
+    title : 'Manufacturing Costs', 
+    url : '/manufacturing-costs', 
+    icon : ChartPie
   },
   {
     title: 'Products',
@@ -74,9 +79,14 @@ const transactions = [
     icon: BookText,
   },
   {
+    title: 'Invoices',
+    url: '/invoices',
+    icon: NotebookTabs
+  },
+  {
     title: 'Manufacuturing',
     url: '/manufacturing',
-    icon: NotebookTabs
+    icon: TrendingUpDown
   },
 ]
 

@@ -108,9 +108,6 @@ export default function UnitsPage() {
                 <TableCell>{unit.symbol}</TableCell>
                 <TableCell>
                   <div className="flex space-x-2">
-                    <Button variant="ghost" size="icon" aria-label="View unit details">
-                      <Eye className="h-4 w-4" />
-                    </Button>
                     <Button variant="ghost" size="icon" aria-label="Edit unit" onClick={() => handleEditClick(unit)}>
                       <Pencil className="h-4 w-4" />
                     </Button>

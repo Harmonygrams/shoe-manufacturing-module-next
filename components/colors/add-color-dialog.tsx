@@ -38,7 +38,7 @@ export default function AddColorSheet() {
         name: '',
       })
       setLoading(false); 
-      queryClient.invalidateQueries(['COLORS'])
+      queryClient.invalidateQueries(['colors'])
       toast({
         title : 'Color added successfully'
       })

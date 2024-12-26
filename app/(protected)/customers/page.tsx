@@ -27,7 +27,7 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer>()
   const customersPerPage = 10
   const { data : customers = []} = useQuery<Customer[]>({
-    queryKey : ['CUSTOMER'],
+    queryKey : ['customers'],
     queryFn : async () => {
       const fetchCustomers = await fetch(`${baseUrl()}/customers`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
       if(fetchCustomers.ok){

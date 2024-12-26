@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { baseUrl } from '@/utils/baseUrl'
 import { useToast } from '@/hooks/use-toast'
 
-export default function AddSizeSheet() {
+export function AddSizeSheet() {
   const [ loading, setLoading ] = useState<boolean>(false); 
   const { toast } = useToast(); 
   const [isOpen, setIsOpen] = useState(false)
@@ -21,8 +21,6 @@ export default function AddSizeSheet() {
     const { name, value } = e.target
     setSize(prev => ({ ...prev, [name]: value }))
   }
-
-
   async function handleSubmit (e: React.FormEvent) {
     setLoading(true); 
     e.preventDefault()
@@ -38,6 +36,7 @@ export default function AddSizeSheet() {
         toast({
           title : 'Size added successfully'
         })
+        window.location.href= "/sizes"
       }else{
         setLoading(false)
         toast({

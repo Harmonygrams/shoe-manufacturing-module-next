@@ -8,8 +8,10 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { baseUrl } from '@/utils/baseUrl'
+import { useQueryClient } from '@tanstack/react-query'
 
 export default function CustomerDetailsDialog() {
+  const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false); 
   const [ customerData, setCustomerData ] = useState({
@@ -31,6 +33,7 @@ export default function CustomerDetailsDialog() {
     if(addCustomer.ok){
       setLoading(false); 
       setOpen(false);
+      queryClient.invalidateQueries(['customers'])
     }
   }
   return (
