@@ -66,7 +66,7 @@ export function ProductionDetailsDialog({ productionId, isOpen, onClose }: Produ
   return (
     <Dialog
       open={isOpen}
-      onOpenChange={(open) => {
+      onOpenChange={(open : any) => {
         if (!open) handleClose()
       }}
     >

@@ -1,4 +1,3 @@
 export function baseUrl () {
-    // return "https://shoe-manufacturing-module-node.onrender.com/api/v1"
-    return "http://localhost:5001/api/v1"
+    return process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5001/api/v1"
 }

@@ -13,7 +13,9 @@ export default function PurchasesPage() {
           <Button>Add New Purchase</Button>
         </Link>
       </div>
-      <PurchaseFilters />
+      <Suspense fallback={<div>Loading...</div>}>
+        <PurchaseFilters />
+      </Suspense>
       <Suspense fallback={<div>Loading...</div>}>
         <PurchaseList />
       </Suspense>
