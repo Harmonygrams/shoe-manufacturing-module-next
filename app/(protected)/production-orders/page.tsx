@@ -9,11 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { CalendarIcon, ChevronLeft, ChevronRight, MoreHorizontal, FileText, Eye, Trash2 } from 'lucide-react'
+import { CalendarIcon, ChevronLeft, ChevronRight, MoreHorizontal, FileText, Eye, Trash2, Pencil } from 'lucide-react'
 import { format } from "date-fns"
 import Link from 'next/link'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { baseUrl } from '@/utils/baseUrl'
+import { DeleteConfirmation } from '@/components/delete-confirmation'
+import { ViewOrderDetails } from '@/components/orders/view-order-details' 
 
 type Order = { 
   id: string; 
@@ -30,6 +32,10 @@ type Product = {
 }
 
 export default function OrderManagement() {
+  const [ isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false)
+  const [viewOrder, setViewOrder] = useState<boolean>(false);
+  const queryClient = useQueryClient()
+  const [selectedOrderId, setSelectedOrderId ] = useState<string>("")
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [startDate, setStartDate] = useState<Date>()
@@ -38,7 +44,7 @@ export default function OrderManagement() {
   const ordersPerPage = 10
 
   const { data: orders = [] } = useQuery<Order[]>({
-    queryKey: ['ORDERS'],
+    queryKey: ['orders'],
     queryFn: async () => {
       const fetchOrders = await fetch(`${baseUrl()}/orders`, { method: 'GET', headers: { 'Content-Type': 'application/json' }})
       if (fetchOrders.ok) {
@@ -74,13 +80,13 @@ export default function OrderManagement() {
   }
 
   const handleViewOrder = (orderId: string) => {
-    console.log('View order:', orderId)
-    // Implement view order logic here
+    setSelectedOrderId(orderId)
+    setViewOrder(true)
   }
 
   const handleDeleteOrder = (orderId: string) => {
-    console.log('Delete order:', orderId)
-    // Implement delete order logic here
+    setSelectedOrderId(orderId)
+    setIsDeleteDialogOpen(true)
   }
 
   return (
@@ -148,7 +154,7 @@ export default function OrderManagement() {
               <TableHead>Customer Name</TableHead>
               <TableHead>Order Date</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Total Quantity</TableHead>
+              {/* <TableHead>Total Quantity</TableHead> */}
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -161,7 +167,7 @@ export default function OrderManagement() {
                 <TableCell>
                   <Badge className={statusColors[order.status]}>{order.status}</Badge>
                 </TableCell>
-                <TableCell>{order.products.reduce((init, sum) => init + sum.quantity, 0)}</TableCell>
+                {/* <TableCell>{order.products.reduce((init, sum) => init + sum.quantity, 0)}</TableCell> */}
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -180,8 +186,14 @@ export default function OrderManagement() {
                         <Eye className="mr-2 h-4 w-4" />
                         <span>View</span>
                       </DropdownMenuItem>
+                      {/* <DropdownMenuItem className="cursor-pointer" disabled={order.status !== "pending"} asChild>
+                        <Link href={`/production-orders/edit/${order.id}`}> 
+                          <Pencil className="mr-2 h-4 w-4" />
+                          <span>Edit</span>
+                        </Link>
+                      </DropdownMenuItem> */}
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => handleDeleteOrder(order.id)} className="text-red-600">
+                      <DropdownMenuItem onClick={() => handleDeleteOrder(order.id)} className="text-red-600 cursor-pointer" disabled={order.status !== "pending"}>
                         <Trash2 className="mr-2 h-4 w-4" />
                         <span>Delete</span>
                       </DropdownMenuItem>
@@ -215,6 +227,27 @@ export default function OrderManagement() {
           </Button>
         </div>
       )}
+      <DeleteConfirmation 
+        itemId={selectedOrderId}
+        onClose={() => {
+          setIsDeleteDialogOpen(false)
+          window.location.reload()
+        }}
+        isOpen = {isDeleteDialogOpen}
+        segment="orders"
+        onDeleteSuccess={() => {
+          setSelectedOrderId('')
+          queryClient.invalidateQueries(["orders"])
+          window.location.reload()
+        }}
+      />
+      {viewOrder && <ViewOrderDetails 
+        id = {selectedOrderId}
+        onClose={() => {
+          setViewOrder(false)
+          window.location.reload()
+        }}
+      />}
     </div>
   )
 }

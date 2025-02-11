@@ -45,7 +45,7 @@ export default function AddUnitSheet() {
         toast({
           title : 'Unit added successfully'
         })
-        queryClient.invalidateQueries(["UNITS"])
+        window.location.reload()
     }else{
       const errorMessage = await saveMaterialToDb.json()
       setError(errorMessage.message)

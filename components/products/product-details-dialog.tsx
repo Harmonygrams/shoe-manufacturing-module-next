@@ -10,12 +10,12 @@ type ProductDetails = {
   name: string;
   description: string;
   selling_price: string;
-  unit: {
-    name: string;
-    symbol: string;
-  };
+  unitId : string; 
+  unitName : string; 
+  unitSymbol : string; 
   sizes: {
-    size: string;
+    sizeName: string;
+    sizeId: string;
     quantity: number;
     cost: number;
     transaction_summary: {
@@ -72,7 +72,7 @@ export function ProductDetailsDialog({ productId, isOpen, onClose }: ProductDeta
           <div className="space-y-6">
             <div>
               <p><strong>Description:</strong> {product.description || 'N/A'}</p>
-              <p><strong>Unit:</strong> {product.unit.name} ({product.unit.symbol})</p>
+              <p><strong>Unit:</strong> {product.unitName} ({product.unitSymbol})</p>
               <p><strong>Selling Price:</strong> {formatCurrency(parseFloat(product.selling_price))}</p>
             </div>
             
@@ -93,7 +93,7 @@ export function ProductDetailsDialog({ productId, isOpen, onClose }: ProductDeta
                 <TableBody>
                   {product.sizes.map((size, index) => (
                     <TableRow key={index}>
-                      <TableCell>{size.size}</TableCell>
+                      <TableCell>{size.sizeName}</TableCell>
                       <TableCell>{size.quantity}</TableCell>
                       <TableCell>{formatCurrency(size.cost)}</TableCell>
                       <TableCell>{size.transaction_summary.total_opening_stock}</TableCell>
@@ -104,34 +104,6 @@ export function ProductDetailsDialog({ productId, isOpen, onClose }: ProductDeta
                   ))}
                 </TableBody>
               </Table>
-            </div>
-            
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Bill of Materials</h3>
-              {product.bill_of_materials.map((bom, bomIndex) => (
-                <div key={bomIndex} className="mb-4">
-                  <p><strong>Date:</strong> {new Date(bom.date).toLocaleDateString()}</p>
-                  <p><strong>Quantity:</strong> {bom.quantity}</p>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Material</TableHead>
-                        <TableHead>Quantity Needed</TableHead>
-                        <TableHead>Quantity Available</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {bom.materials.map((material, materialIndex) => (
-                        <TableRow key={materialIndex}>
-                          <TableCell>{material.material}</TableCell>
-                          <TableCell>{material.quantityNeeded}</TableCell>
-                          <TableCell>{material.quantityAvailable}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ))}
             </div>
           </div>
         ) : null}

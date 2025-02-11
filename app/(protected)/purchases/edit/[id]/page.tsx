@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, Search, X } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,7 +14,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from '@/hooks/use-toast'
 import { formatCurrency } from '@/helpers/currencyFormat'
 import { baseUrl } from '@/utils/baseUrl'
-
+import { useParams } from 'next/navigation'
 type Supplier = {
   id: string;
   supplierName: string;
@@ -33,13 +33,25 @@ type PurchaseItem = {
   quantity: number;
   cost: number;
 }
+type PurchaseItemFetched = {
+  materialId: string;
+  materialName: string;
+  quantity: number;
+  unitCost: number;
+}
 
 type Purchase = {
+  purchaseId : string;
   supplierId: string;
   purchaseDate: Date | undefined;
   rawMaterials: PurchaseItem[];
 }
-
+type FetchedPurchase = {
+  id : number; 
+  date : Date; 
+  supplier : Supplier,
+  materials : PurchaseItemFetched[]
+}
 export default function AddPurchasesPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [supplier, setSupplier] = useState<string>('')
@@ -47,7 +59,18 @@ export default function AddPurchasesPage() {
   const [status, setStatus] = useState('completed')
   const [rawMaterialSearch, setRawMaterialSearch] = useState('')
   const [selectedItems, setSelectedItems] = useState<PurchaseItem[]>([])
-
+  const { id } = useParams()
+  //Fetch the current purchase details 
+  const fetchPurchase = useQuery({
+    queryKey : ['purchase'],
+    queryFn : async () => {
+      const  fetchPurchase = await fetch(`${baseUrl()}/purchases/${id}`, { method: 'GET', headers: { 'Content-Type': 'application/json' } })
+      if(fetchPurchase.ok){
+        const fetchPurchaseJson = await fetchPurchase.json() as FetchedPurchase;
+        return fetchPurchaseJson
+      }
+    }
+  })
   // Fetch suppliers from db 
   const { data: suppliers = [] } = useQuery<Supplier[]>({
     queryKey: ['SUPPLIERS'],
@@ -75,8 +98,8 @@ export default function AddPurchasesPage() {
   const savePurchaseToDb = useMutation({
     mutationFn: async (payload: string) => {
       setIsLoading(true)
-      const response = await fetch(`${baseUrl()}/purchases`, { 
-        method: 'POST', 
+      const response = await fetch(`${baseUrl()}/purchases/${id}`, { 
+        method: 'PUT', 
         body: payload, 
         headers: { 'Content-Type': 'application/json' }
       })
@@ -107,16 +130,8 @@ export default function AddPurchasesPage() {
   })
 
   async function handleSavePurchase() {
-    // if (!supplier || !purchaseDate || selectedItems.length === 0) {
-    //   toast({
-    //     title: "Error",
-    //     description: "Please fill in all required fields and add at least one raw material.",
-    //     variant: "destructive"
-    //   })
-    //   return
-    // }
-
     const purchaseData: Purchase = {
+      purchaseId : id as string,
       supplierId: supplier,
       purchaseDate: purchaseDate,
       rawMaterials: selectedItems
@@ -161,10 +176,18 @@ export default function AddPurchasesPage() {
   const calculateTotalQuantity = () => {
     return selectedItems.reduce((sum, item) => sum + item.quantity, 0)
   }
-
+  useEffect(() => {
+    if(fetchPurchase.data){
+      const { supplier, date, materials } = fetchPurchase.data
+      setSupplier(supplier.id)
+      setPurchaseDate(new Date(date))
+      const processedMaterials = materials.map(material => ({materialId : material.materialId, quantity : material.quantity, cost : material.unitCost, name : material.materialName}))
+      setSelectedItems(processedMaterials)
+    }
+  }, [fetchPurchase.isSuccess, fetchPurchase.data])
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Add Purchase</h1>
+      <h1 className="text-3xl font-bold mb-6">Edit Purchase</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div>
@@ -310,7 +333,7 @@ export default function AddPurchasesPage() {
           </div>
           <div className="w-full md:w-auto order-1 md:order-2 mb-4 md:mb-0">
             <Button className="w-full md:w-auto" onClick={handleSavePurchase} disabled={isLoading}>
-              {isLoading ? "Saving..." : "Save Purchase"}
+              {isLoading ? "Updating..." : "Update Purchase"}
             </Button>
           </div>
         </div>

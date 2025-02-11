@@ -11,9 +11,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
-import { toast, useToast } from '@/hooks/use-toast'
+import { toast } from '@/hooks/use-toast'
 import { formatCurrency } from '@/helpers/currencyFormat'
 import { baseUrl } from '@/utils/baseUrl'
+import { useParams } from 'next/navigation'
 
 type OrderSize = {
   sizeId : string; 
@@ -31,7 +32,8 @@ type Order = {
   orderType: 'sale' | 'manufacturing',
   transactionDate : Date | undefined, 
   status : string,
-  products : OrderProduct2[]
+  products : OrderProduct2[],
+  productionCosts?: ProductionCost[]
 }
 type Customer = {
   id : string;
@@ -73,6 +75,26 @@ type RawMaterial = {
   quantityNeeded : number; 
   quantityAvailable : number; 
 }
+type OrderFetched = {
+    id : number; 
+    customerId : number; 
+    status : string; 
+    orderDate : string,
+    products : { 
+        productId : number; 
+        productName : string; 
+        colorName : string; 
+        colorId : number;
+        quantity : number; 
+        sizeName : string; 
+        cost : number; 
+        sizeId : number; 
+    }[]
+}
+type ProductionCost = {
+  id: number
+  amount: number
+}
 export default function ProductionOrderPage() {
   const [isLoading, setIsLoading ] = useState<boolean>(false); 
   const [customer, setCustomer] = useState<string>('')
@@ -82,7 +104,20 @@ export default function ProductionOrderPage() {
   const [selectedProducts, setSelectedProducts] = useState<OrderProduct[]>([])
   const [order,  setOrder ] = useState<Order>()
   const [orderType, setOrderType] = useState<'sale' | 'manufacturing'>('sale')
-  // Fetch customers from db 
+  const [productionCosts, setProductionCosts] = useState<ProductionCost[]>([])
+  const { id } = useParams()
+  //fetch the current order 
+  const fetchOrder = useQuery({
+    queryKey : ['productionOrder'], 
+    queryFn : async () => {
+        const fetchOrder = await fetch(`${baseUrl()}/orders/${id}`, { method : 'GET'})
+        if(fetchOrder.ok){
+            const fetchOrderJson = await fetchOrder.json() as OrderFetched
+            return fetchOrderJson;
+        }
+    }
+  })
+  // Fetch customers from db
   const { data : customers = []} = useQuery<Customer[]>({
     queryKey : ['CUSTOMERS'], 
     queryFn : async () => {
@@ -183,7 +218,8 @@ export default function ProductionOrderPage() {
       orderType,
       status: status,
       transactionDate: orderDate,
-      products
+      products,
+      productionCosts: productionCosts
     }
 
     setOrder(orderData as Order)
@@ -267,6 +303,67 @@ export default function ProductionOrderPage() {
   const calculateTotalPairs = () => {
     return selectedProducts.reduce((sum, product) => sum + product.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0)
   }
+  const handleCostCheck = (costId: number, amount: number, checked: boolean) => {
+    if (checked) {
+      setProductionCosts(prev => [...prev, { id: costId, amount }])
+    } else {
+      setProductionCosts(prev => prev.filter(cost => cost.id !== costId))
+    }
+  }
+  useEffect(() => {
+    if(fetchOrder.data){
+        const { customerId, orderDate, products } = fetchOrder.data
+        setOrderType(customerId ? 'sale' : 'manufacturing')
+        setOrderDate(new Date(orderDate))
+        setCustomer(customerId ?  customerId.toString() : "")
+        const processedProducts : OrderProduct[] = []
+        for(const product of products){
+            //check if this product is in the array 
+            const findProduct = processedProducts.find(p => p.id === product.productId.toString())
+            if(!findProduct){
+                processedProducts.push({
+                    id : product.productId.toString(),
+                    name : product.productName,
+                    items : []
+                })
+                // Get the items array of this product 
+                const itemsArray = processedProducts.find(processedProduct => processedProduct.id === product.productId.toString())?.items
+                itemsArray?.push({
+                    id : product.productId.toString(), 
+                    size : {
+                        id : product.sizeId.toString(),
+                        name : product.sizeName, 
+                        cost : product.cost
+                    }, 
+                    color : {
+                        name : product.colorName, 
+                        id : product.colorId.toString()
+                    }, 
+                    quantity : product.quantity, 
+                    cost : product.cost
+                })
+            }else{
+                // Get the items array of this product 
+                const itemsArray = processedProducts.find(processedProduct => processedProduct.id === product.productId.toString())?.items
+                itemsArray?.push({
+                    id : product.productId.toString(), 
+                    size : {
+                        id : product.sizeId.toString(),
+                        name : product.sizeName, 
+                        cost : product.cost
+                    }, 
+                    color : {
+                        name : product.colorName, 
+                        id : product.colorId.toString()
+                    }, 
+                    quantity : product.quantity, 
+                    cost : product.cost
+                })
+            }
+        }
+        setSelectedProducts(processedProducts)
+    }
+  }, [fetchOrder.isSuccess, fetchOrder.data])
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">Create Production Order</h1>
@@ -296,9 +393,7 @@ export default function ProductionOrderPage() {
                   <SelectValue placeholder="Select customer" />
                 </SelectTrigger>
                 <SelectContent>
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.customerName}</SelectItem>
-                  ))}
+                  {customers.map((c) => (<SelectItem key={c.id} value={c.id.toString()}>{c.customerName}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
@@ -383,8 +478,8 @@ export default function ProductionOrderPage() {
                     <TableHead>Size</TableHead>
                     <TableHead>Color</TableHead>
                     <TableHead>Quantity</TableHead>
-                    {/* <TableHead>Cost</TableHead>
-                    <TableHead>Total</TableHead> */}
+                    <TableHead>Cost</TableHead>
+                    <TableHead>Total</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -415,9 +510,7 @@ export default function ProductionOrderPage() {
                             <SelectValue placeholder={item.color.name} />
                           </SelectTrigger>
                           <SelectContent>
-                            {colors.map((color) => (
-                              <SelectItem key={color.id} value={color.id}>{color.name}</SelectItem>
-                            ))}
+                            {colors.map((color) => (<SelectItem key={color.id} value={color.id}>{color.name}</SelectItem>))}
                           </SelectContent>
                         </Select>
                       </TableCell>
@@ -430,8 +523,18 @@ export default function ProductionOrderPage() {
                           step={0.01}
                         />
                       </TableCell>
-                      {/* <TableCell>{formatCurrency(item.size.cost)}</TableCell>
-                      <TableCell>{formatCurrency(item.quantity * item.size.cost)}</TableCell> */}
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={productionCosts.some(cost => cost.id === parseInt(item.id) && cost.amount === item.size.cost)}
+                            onChange={(e) => handleCostCheck(parseInt(item.id), item.size.cost, e.target.checked)}
+                            className="h-4 w-4"
+                          />
+                          {formatCurrency(item.size.cost)}
+                        </div>
+                      </TableCell>
+                      <TableCell>{formatCurrency(item.quantity * item.size.cost)}</TableCell>
                       <TableCell>
                         <Button variant="ghost" size="sm" onClick={() => removeProductItem(productIndex, itemIndex)}>
                           <X className="h-4 w-4" />
@@ -447,7 +550,7 @@ export default function ProductionOrderPage() {
                 <Plus className="mr-2 h-4 w-4" /> Add Size
               </Button>
               <div>
-                {/* <span className="font-semibold">Subtotal:</span> {formatCurrency(calculateSubtotal(product.items))} */}
+                <span className="font-semibold">Subtotal:</span> {formatCurrency(calculateSubtotal(product.items))}
               </div>
             </div>
           </CardContent>
@@ -457,8 +560,8 @@ export default function ProductionOrderPage() {
       <div className="mt-6 bg-gray-50 p-6 rounded-lg shadow">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
           <div className="w-full md:w-auto order-2 md:order-1">
-            {/* <p className="text-lg"><span className="font-semibold">Total Pairs:</span> {calculateTotalPairs()}</p> */}
-            <p className="text-2xl font-bold mt-2"><span>Total Pairs :</span> {calculateTotalPairs()}</p>
+            <p className="text-lg"><span className="font-semibold">Total Pairs:</span> {calculateTotalPairs()}</p>
+            <p className="text-2xl font-bold mt-2"><span>Total Amount:</span> {formatCurrency(calculateTotal())}</p>
           </div>
           <div className="w-full md:w-auto order-1 md:order-2 mb-4 md:mb-0">
             <Button className="w-full md:w-auto" onClick={handleSaveProductionOrder} disabled={isLoading}>

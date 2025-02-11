@@ -32,7 +32,7 @@ export default function UnitsPage() {
   const queryClient = useQueryClient()
 
   const { data, isLoading, isSuccess } = useQuery({
-    queryKey: ["UNITS"],
+    queryKey: ["units"],
     queryFn: async () => {
       const fetchUnits = await fetch(`${baseUrl()}/units`, { method: 'GET', headers: { 'Content-Type': 'Application/json' } })
       if (fetchUnits.ok) {
@@ -47,7 +47,7 @@ export default function UnitsPage() {
       await fetch(`${baseUrl()}/units/${id}`, { method: 'DELETE' })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(["UNITS"])
+      queryClient.invalidateQueries(["units"])
     }
   })
 
@@ -149,9 +149,10 @@ export default function UnitsPage() {
         />
       )}
       <DeleteConfirmation 
+        segment='units'
         isOpen={deleteConfirmation.isOpen}
         onClose={() => setDeleteConfirmation({ isOpen: false, unitId: '' })}
-        onDeleteSuccess={() => queryClient.invalidateQueries(["UNITS"])}
+        onDeleteSuccess={() => window.location.reload()}
         itemId={deleteConfirmation.unitId}
       />
     </div>

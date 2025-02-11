@@ -19,13 +19,15 @@ interface DeleteConfirmationProps {
   isOpen: boolean
   onClose: () => void
   onDeleteSuccess: () => void
+  segment : string;
 }
 
 export function DeleteConfirmation({
     itemId,
     isOpen,
     onClose,
-    onDeleteSuccess
+    onDeleteSuccess, 
+    segment
 }: DeleteConfirmationProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const { toast } = useToast()
@@ -34,7 +36,7 @@ export function DeleteConfirmation({
   const handleDelete = async () => {
     setIsDeleting(true)
     try {
-      const response = await fetch(`${baseUrl()}/${'units'}/${itemId}`, {
+      const response = await fetch(`${baseUrl()}/${segment}/${itemId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' }
       })
@@ -49,7 +51,6 @@ export function DeleteConfirmation({
       })
       onDeleteSuccess()
       onClose()
-      router.refresh()
     } catch (error) {
       toast({
         title: "Error",

@@ -1,246 +1,219 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Pencil } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Alert, AlertTitle } from "@/components/ui/alert"
-
-type Unit = {
-  id: number;
-  name: string;
-  symbol: string;
-}
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useToast } from '@/hooks/use-toast'
+import { baseUrl } from '@/utils/baseUrl'
 
 type Material = {
-  id: number;
-  name: string;
-  description: string;
-  openingStock: number;
-  unitId: string | number;
-  costPrice: number;
-  reorderPoint: number;
+  id: number
+  name: string
+  description: string
+  reorderPoint: string
+  unitId: number
+  unitName: string
+  openingStock: string
+  costPrice: string
 }
 
-type EditMaterialSheetProps = {
-  materialId: number;
-  onUpdate: () => void;
+type Unit = {
+  id: number
+  name: string
+  symbol: string
 }
 
-export default function EditMaterialSheet({ materialId, onUpdate }: EditMaterialSheetProps) {
+interface EditMaterialSheetProps {
+  materialId: number | undefined
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+  trigger?: React.ReactNode
+}
+
+export default function EditMaterialSheet({ materialId, isOpen, onOpenChange, trigger }: EditMaterialSheetProps) {
+  const queryClient = useQueryClient()
   const [loading, setLoading] = useState(false)
-  const [fetchingMaterial, setFetchingMaterial] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [isOpen, setIsOpen] = useState(false)
-  const [units, setUnits] = useState<Unit[]>([])
+  const { toast } = useToast()
   const [editedMaterial, setEditedMaterial] = useState<Material | null>(null)
 
+  // Fetch units using React Query
+  const { data: units } = useQuery<Unit[]>({
+    queryKey: ['units'],
+    queryFn: async () => {
+      const response = await fetch(`${baseUrl()}/units`)
+      if (!response.ok) throw new Error('Failed to fetch units')
+      return response.json()
+    }
+  })
+
+  // Fetch material data
+  const { data: material } = useQuery<Material>({
+    queryKey: ['material', materialId],
+    queryFn: async () => {
+      if (!materialId) throw new Error('No material ID')
+      const response = await fetch(`${baseUrl()}/materials/${materialId}`)
+      if (!response.ok) throw new Error('Failed to fetch material')
+      return response.json()
+    },
+    enabled: !!materialId && isOpen
+  })
+
+  // Update material mutation
+  const updateMaterialMutation = useMutation({
+    mutationFn: async (data: Material) => {
+      const response = await fetch(`${baseUrl()}/materials/${materialId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      if (!response.ok) throw new Error('Failed to update material')
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['rawMaterials'])
+      toast({ title: "Material updated successfully" })
+      onOpenChange(false)
+      setLoading(false)
+    },
+    onError: () => {
+      toast({
+        title: "Failed to update material",
+        variant: "destructive"
+      })
+      setLoading(false)
+    }
+  })
+
   useEffect(() => {
-    async function fetchData() {
-      setFetchingMaterial(true)
-      setError(null)
-      
-      try {
-        const [materialResponse, unitsResponse] = await Promise.all([
-          fetch(`/api/materials/${materialId}`),
-          fetch('/api/units')
-        ])
-
-        if (!materialResponse.ok) throw new Error('Failed to fetch material')
-        if (!unitsResponse.ok) throw new Error('Failed to fetch units')
-
-        const [materialData, unitsData] = await Promise.all([
-          materialResponse.json(),
-          unitsResponse.json()
-        ])
-
-        setEditedMaterial(materialData)
-        setUnits(unitsData)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load data')
-      } finally {
-        setFetchingMaterial(false)
-      }
+    if (material) {
+      setEditedMaterial(material)
     }
-
-    if (isOpen) {
-      fetchData()
-    }
-  }, [isOpen, materialId])
+  }, [material])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    if (!editedMaterial) return
-    
     const { name, value } = e.target
     setEditedMaterial(prev => {
       if (!prev) return prev
       return {
         ...prev,
-        [name]: name === 'openingStock' || name === 'costPrice' || name === 'reorderPoint' 
-          ? parseFloat(value) || 0 
-          : value
+        [name]: value
       }
     })
   }
 
   const handleSelectChange = (value: string) => {
-    if (!editedMaterial) return
-    
     setEditedMaterial(prev => {
       if (!prev) return prev
       return { ...prev, unitId: parseInt(value) }
     })
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!editedMaterial) return
-    
-    setLoading(true)
-    setError(null)
-    setSuccess(null)
-    
-    try {
-      const response = await fetch(`/api/materials/${materialId}`, {
-        method: 'PUT',
-        body: JSON.stringify(editedMaterial),
-        headers: { 'Content-Type': 'application/json' },
-      })
-
-      if (response.ok) {
-        setSuccess('Material updated successfully')
-        onUpdate()
-        setTimeout(() => {
-          setIsOpen(false)
-          setSuccess(null)
-        }, 1500)
-      } else {
-        const data = await response.json()
-        throw new Error(data.message || 'Failed to update material')
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update material')
-    } finally {
-      setLoading(false)
+    if (editedMaterial) {
+      setLoading(true)
+      updateMaterialMutation.mutate(editedMaterial)
     }
   }
 
   return (
-    <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <Pencil className="h-4 w-4" />
-        </Button>
-      </SheetTrigger>
+    <Sheet open={isOpen} onOpenChange={onOpenChange}>
+      {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
       <SheetContent className="sm:max-w-[540px]">
         <SheetHeader>
           <SheetTitle>Edit Material</SheetTitle>
           <SheetDescription>
-            Modify the material details and save your changes.
+            Update the material details below. Click save when you're done.
           </SheetDescription>
         </SheetHeader>
-        {error && (
-          <Alert variant="destructive" className="mt-4">
-            <AlertTitle>{error}</AlertTitle>
-          </Alert>
-        )}
-        {success && (
-          <Alert className="mt-4">
-            <AlertTitle>{success}</AlertTitle>
-          </Alert>
-        )}
-        {fetchingMaterial ? (
-          <div className="flex items-center justify-center h-[400px]">
-            Loading material data...
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Material Name</Label>
+            <Input
+              id="name"
+              name="name"
+              value={editedMaterial?.name || ''}
+              onChange={handleInputChange}
+              placeholder="Enter material name"
+              required
+            />
           </div>
-        ) : editedMaterial ? (
-          <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              name="description"
+              value={editedMaterial?.description || ''}
+              onChange={handleInputChange}
+              placeholder="Enter material description"
+              rows={3}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Material Name</Label>
+              <Label htmlFor="openingStock">Opening Quantity</Label>
               <Input
-                id="name"
-                name="name"
-                value={editedMaterial.name}
+                id="openingStock"
+                name="openingStock"
+                type="number"
+                value={editedMaterial?.openingStock || ''}
                 onChange={handleInputChange}
+                placeholder="Enter opening quantity"
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                name="description"
-                value={editedMaterial.description}
-                onChange={handleInputChange}
-                rows={3}
-              />
+              <Label htmlFor="unit">Unit of Measure</Label>
+              <Select value={editedMaterial?.unitId.toString()} onValueChange={handleSelectChange}>
+                <SelectTrigger id="unit">
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {units?.map(unit => (
+                    <SelectItem value={unit.id.toString()} key={unit.id}>
+                      {`${unit.name} (${unit.symbol})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="openingStock">Opening Quantity</Label>
-                <Input
-                  id="openingStock"
-                  name="openingStock"
-                  type="number"
-                  value={editedMaterial.openingStock}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="unit">Unit of Measure</Label>
-                <Select 
-                  value={editedMaterial.unitId.toString()} 
-                  onValueChange={handleSelectChange}
-                >
-                  <SelectTrigger id="unit">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {units.map(unit => (
-                      <SelectItem value={unit.id.toString()} key={unit.id}>
-                        {`${unit.name} (${unit.symbol})`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="costPrice">Cost price</Label>
+            <Input
+              id="costPrice"
+              name="costPrice"
+              type="number"
+              value={editedMaterial?.costPrice || ''}
+              onChange={handleInputChange}
+              placeholder="Enter cost of raw material"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="reorderPoint">Reorder point</Label>
+            <Input
+              id="reorderPoint"
+              name="reorderPoint"
+              type="number"
+              value={editedMaterial?.reorderPoint || ''}
+              onChange={handleInputChange}
+              placeholder="Enter reorder point"
+            />
+          </div>
+          <SheetFooter>
+            <div className="fixed bottom-0 right-0 w-full sm:max-w-[540px] bg-background border-t p-4 flex justify-end space-x-2">
+              <Button type="submit" disabled={loading}>
+                {loading ? "Updating..." : "Update"}
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="costPrice">Cost price</Label>
-              <Input
-                id="costPrice"
-                name="costPrice"
-                type="number"
-                value={editedMaterial.costPrice}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="reorderPoint">Reorder point</Label>
-              <Input
-                id="reorderPoint"
-                name="reorderPoint"
-                type="number"
-                value={editedMaterial.reorderPoint}
-                onChange={handleInputChange}
-              />
-            </div>
-            <SheetFooter>
-              <div className="fixed bottom-0 right-0 w-full sm:max-w-[540px] bg-background border-t p-4 flex justify-end space-x-2">
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </div>
-            </SheetFooter>
-          </form>
-        ) : null}
+          </SheetFooter>
+        </form>
       </SheetContent>
     </Sheet>
   )

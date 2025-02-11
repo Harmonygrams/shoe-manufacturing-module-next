@@ -27,7 +27,7 @@ export function PurchaseFilters() {
 
   return (
     <div className="flex flex-wrap gap-6 mb-6 items-end">
-      <div className=''>
+      {/* <div className=''>
         <Popover>
           <Label className='block' htmlFor="date">Date</Label>
           <PopoverTrigger asChild>
@@ -44,8 +44,8 @@ export function PurchaseFilters() {
             />
           </PopoverContent>
         </Popover>
-      </div>
-      <div>
+      </div> */}
+      {/* <div>
         <Label htmlFor="status">Status</Label>
         <Select value={status} onValueChange={setStatus}>
           <SelectTrigger id="status">
@@ -57,7 +57,7 @@ export function PurchaseFilters() {
             <SelectItem value="completed">Completed</SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </div> */}
       <div>
         <Label htmlFor="supplier">Supplier</Label>
         <Input

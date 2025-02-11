@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import SupplierDetailsDialog from '@/components/suppliers/add-supplier-dialog'
 import { useQuery } from '@tanstack/react-query'
 import { baseUrl } from '@/utils/baseUrl'
+import EditSupplierSheet from '@/components/suppliers/edit-supplier-dialog'
 
 type Supplier = {
   id : string;
@@ -23,10 +24,11 @@ export default function SupplierssPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [supplierEditorIsOpen, setSupplierEditorIsOpen] = useState<boolean>(false); 
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier>()
   const suppliersPerPage = 10
   const { data : suppliers = []} = useQuery<Supplier[]>({
-    queryKey : ['SUPPLIER'],
+    queryKey : ['suppliers'],
     queryFn : async () => {
       const fetchSuppliers = await fetch(`${baseUrl()}/suppliers`, { method : 'GET', headers : { 'Content-Type' : 'Application/json'}})
       if(fetchSuppliers.ok){
@@ -46,6 +48,12 @@ export default function SupplierssPage() {
   const currentSupplier = filteredSuppliers.slice(indexOfFirstSupplier, indexOfLastSupplier)
 
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber)
+
+  const handleSelectSupplier = (id : string) => {
+    const supplier = suppliers.find(supplier => supplier.id === id)
+    setSelectedSupplier(supplier)
+    setSupplierEditorIsOpen(true)
+  }
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
@@ -137,7 +145,7 @@ export default function SupplierssPage() {
                         )}
                       </DialogContent>
                     </Dialog>
-                    <Button variant="outline" size="icon">
+                    <Button variant="outline" size="icon" onClick={() => handleSelectSupplier(supplier.id)}>
                       <Edit className="h-4 w-4" />
                       <span className="sr-only">Edit</span>
                     </Button>
@@ -174,6 +182,11 @@ export default function SupplierssPage() {
           </Button>
         </div>
       )}
+      <EditSupplierSheet
+        supplierId={selectedSupplier?.id}
+        isOpen = { supplierEditorIsOpen }
+        onOpenChange={() => {setSupplierEditorIsOpen(false)}}
+      />
     </div>
   )
 }

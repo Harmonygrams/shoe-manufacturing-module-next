@@ -9,6 +9,8 @@ import { useQuery } from '@tanstack/react-query'
 import { baseUrl } from '@/utils/baseUrl'
 import { formatCurrency } from '@/helpers/currencyFormat'
 import { ProductDetailsDialog } from '@/components/products/product-details-dialog'
+import { DeleteConfirmation } from '@/components/delete-confirmation'
+import { useQueryClient } from '@tanstack/react-query'
 
 type Product = { 
   id: number;
@@ -24,6 +26,8 @@ export default function ProductsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [showDelete, setShowDelete] = useState<boolean>(false); 
+  const queryClient = useQueryClient()
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['PRODUCTS'],
@@ -50,7 +54,10 @@ export default function ProductsPage() {
     setSelectedProductId(productId)
     setIsDialogOpen(true)
   }
-
+  const handleDelete = (productId : number ) => {
+    setSelectedProductId(productId) 
+    setShowDelete(true)
+  }
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">Products</h1>
@@ -96,10 +103,12 @@ export default function ProductsPage() {
                     <Button variant="ghost" size="icon" aria-label="View product details" onClick={() => handleViewProduct(product.id)}>
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" aria-label="Edit product">
-                      <Pencil className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" aria-label="Edit product" asChild>
+                      <Link href={`/products/edit/${product.id}`}>
+                        <Pencil className="h-4 w-4" />
+                      </Link>
                     </Button>
-                    <Button variant="ghost" size="icon" aria-label="Delete product">
+                    <Button variant="ghost" size="icon" aria-label="Delete product" onClick={() => handleDelete(product.id)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -135,6 +144,15 @@ export default function ProductsPage() {
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
       />
+      {selectedProductId && <DeleteConfirmation 
+        segment='products'
+        isOpen = {showDelete}
+        itemId={selectedProductId.toString()}
+        onDeleteSuccess={() => {
+          window.location.reload()
+        }}
+        onClose={() => setShowDelete(false)}
+      />}
     </div>
   )
 }

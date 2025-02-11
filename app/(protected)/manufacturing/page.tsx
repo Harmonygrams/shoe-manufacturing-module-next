@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { format } from 'date-fns'
+import { format, set } from 'date-fns'
 import { ChevronDown, ChevronUp, Eye, Edit, Trash2, Plus, MoreVertical, AlertCircle } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,7 @@ import { baseUrl } from '@/utils/baseUrl'
 import { formatCurrency } from '@/helpers/currencyFormat'
 import { Status } from '@/components/manufacturing/status'
 import { ProductionSummary } from '@/components/manufacturing/production-summary'
+import { DeleteConfirmation } from '@/components/delete-confirmation'
 import Link from 'next/link'
 import {
   DropdownMenu,
@@ -20,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ProductionDetailsDialog } from "@/components/manufacturing/manufacturing-dialog";
-
+import { UpdateProductionDialog } from '@/components/manufacturing/update-manufacturing-status'
 type ProductionStatus = 'cutting' | 'sticking' | 'lasting' | 'finished'
 
 type Production = {
@@ -44,7 +45,8 @@ export default function ProductionPage() {
   const [statusFilter, setStatusFilter] = useState<ProductionStatus | 'all'>('all')
   const [selectedProductionId, setSelectedProductionId] = useState<number | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-
+  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false)
+  const [updateManufacturingStatus, setUpdateManufacturingStatus] = useState(false)
   const {
     data,
     isLoading,
@@ -94,7 +96,6 @@ export default function ProductionPage() {
 
       <Skeleton className="h-8 w-full mb-6" />
       <Skeleton className="h-96 w-full" />
-
       <Card className="mt-6">
         <CardHeader>
           <Skeleton className="h-6 w-48" />
@@ -117,7 +118,10 @@ export default function ProductionPage() {
     return renderSkeleton()
   }
   
-  function handleDelete (productionId : number) {}
+  function handleDelete (productionId : number) {
+    setSelectedProductionId(productionId)
+    setIsDeleteConfirmationOpen(true) 
+  }
   const handleView = (id: number) => {
     setSelectedProductionId(id)
     setIsDialogOpen(true)
@@ -201,7 +205,10 @@ export default function ProductionPage() {
                             <Eye className="w-4 h-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedProductionId(production.id)
+                            setUpdateManufacturingStatus(true)
+                            }}>
                             <AlertCircle className="w-4 h-4 mr-2" />
                             Update Status
                           </DropdownMenuItem>
@@ -226,11 +233,30 @@ export default function ProductionPage() {
           </CardContent>
         </Card>
       </div>
-      <ProductionDetailsDialog 
+      {updateManufacturingStatus && <UpdateProductionDialog 
+        productionId={selectedProductionId}
+        isOpen={updateManufacturingStatus}
+        onClose={() => {
+          setUpdateManufacturingStatus(false)
+          window.location.reload()
+        }}
+      />}
+      {isDialogOpen && <ProductionDetailsDialog 
         productionId={selectedProductionId}
         isOpen={isDialogOpen}
         onClose={handleClose}
-      />
+      />}
+      {selectedProductionId && <DeleteConfirmation 
+        isOpen={isDeleteConfirmationOpen}
+        itemId={selectedProductionId.toString()}
+        onClose={() => {
+          setIsDeleteConfirmationOpen(false)
+          window.location.reload()
+        }
+        }
+        segment='manufacturing'
+        onDeleteSuccess={() => {window.location.reload()}}
+      />}
     </>
   )
 }

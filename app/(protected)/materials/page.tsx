@@ -26,7 +26,7 @@ export default function MaterialsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const materialsPerPage = 5;
-  const [selectedMaterial, setSelectedMaterial] = useState<RawMaterial>();
+  const [selectedMaterial, setSelectedMaterial] = useState<RawMaterial | undefined>();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -92,7 +92,6 @@ export default function MaterialsPage() {
     setSelectedMaterial(material);
     setIsDeleteDialogOpen(true);
   };
-
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">Raw Materials</h1>
@@ -187,18 +186,20 @@ export default function MaterialsPage() {
         </div>
       </div>
 
-      {selectedMaterial && <EditMaterialDialog
-        materialId={selectedMaterial.id}
-        onUpdate={() => {
-          queryClient.invalidateQueries(['rawMaterials']);
-          setIsEditDialogOpen(false);
-        }}
-      />}
+      <EditMaterialDialog
+        materialId={selectedMaterial?.id}
+        isOpen={isEditDialogOpen}
+        onOpenChange={() => {setIsEditDialogOpen(prev => !prev)}}
+      />
 
       <DeleteDialog
         isOpen={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
-        onConfirm={() => selectedMaterial && deleteMaterialMutation.mutate(selectedMaterial.id)}
+        onConfirm={() => {
+          if (selectedMaterial) {
+            deleteMaterialMutation.mutate(selectedMaterial.id)
+          }
+        }}
         title="Delete Material"
         description="Are you sure you want to delete this material? This action cannot be undone."
       />

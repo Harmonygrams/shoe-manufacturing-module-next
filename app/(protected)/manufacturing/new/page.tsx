@@ -1,7 +1,7 @@
 'use client'
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Trash2, X } from 'lucide-react'
+import {  X } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,63 +12,105 @@ import { useToast } from '@/hooks/use-toast'
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { formatCurrency } from '@/helpers/currencyFormat'
 import { Skeleton } from "@/components/ui/skeleton"
-import { v4 as uuidv4} from 'uuid'
 import { baseUrl } from '@/utils/baseUrl'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-type Product = {
+// Comprehensive Type Definitions
+interface RawMaterial {
+  rawMaterialId: number;
+  rawMaterialName: string;
+  quantityNeeded: number;
+  quantityAvailable: number;
+  quantityPerUnit: number;
+  materialCost: number;
+}
+
+interface Product {
+  productId: number;
   productName: string;
   cost: number;
-  productId: number;
   colorName: string;
   colorId: number;
   quantity: number;
   sizeName: string;
   sizeId: string;
-  rawMaterials: RawMaterial[]
+  rawMaterials: RawMaterial[];
 }
 
-type RawMaterial = {
-  rawMaterialName: string;
-  rawMaterialId: number;
-  quantityNeeded: number;
-  quantityAvailable: number;
-  quantityPerUnit: number;
-  materialCost : number;
-}
-
-type SalesOrder = {
+interface SalesOrder {
   id: number;
   customerName: string;
   orderDate: string;
   products: Product[];
 }
 
-type ManufacturingItem = {
+interface ManufacturingItem {
   productId: number;
-  productName: string;
+  productName?: string;
   quantity: number;
 }
 
-type ManufacturingData = {
+interface ManufacturingData {
   date: Date;
   items: ManufacturingItem[];
   laborCost: number;
 }
 
+interface ManufacturingCost {
+  id: string;
+  name: string;
+  amount: number;
+}
 
-export default function AddManufacturingPage() {
-  const [status, setStatus] = useState<string>()
+interface RawMaterialSummary {
+  rawMaterialId: number;
+  rawMaterialName: string;
+  quantityNeeded: number;
+  quantityAvailable: number;
+}
+
+interface ProductionPayload {
+  productionDate: Date;
+  status?: string;
+  orderType?: 'sales' | 'custom';
+  orderId?: number;
+  productionCosts?: ManufacturingCost[];
+  products: Array<{
+    productId: number;
+    sizeId?: string;
+    colorId?: number;
+    unitCost?: number;
+    quantity: number;
+  }>;
+  rawMaterials?: Array<{
+    materialId: number;
+    quantity: number;
+  }>;
+  laborCost?: number;
+}
+
+export default function AddManufacturingPage(): React.JSX.Element {
   const { toast } = useToast()
+  const [status, setStatus] = useState<string>()
+  const [productionCosts, setProductionCosts] = useState<ManufacturingCost[]>([])
   const [manufacturingData, setManufacturingData] = useState<ManufacturingData>({
     date: new Date(),
     items: [],
     laborCost: 0,
   })
-  const [loading, setLoading] = useState(false)
-  const [selectedSalesOrder, setSelectedOrder] = useState<SalesOrder>()
-  const [isLoading, setIsLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState('sales-orders')
+  const [loading, setLoading] = useState<boolean>(false)
+  const [selectedSalesOrder, setSelectedOrder] = useState<SalesOrder | undefined>()
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [activeTab, setActiveTab] = useState<string>('sales-orders')
+
+  const { data: manufacturingCosts = [] } = useQuery<ManufacturingCost[]>({
+    queryKey: ['manufacturingCosts'],
+    queryFn: async () => {
+      const response = await fetch(`${baseUrl()}/manufacturing-costs`)
+      if (!response.ok) throw new Error('Failed to fetch manufacturing costs')
+      return response.json()
+    }
+  })
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['PRODUCTS'],
@@ -82,62 +124,84 @@ export default function AddManufacturingPage() {
   const { data: salesOrders = [] } = useQuery<SalesOrder[]>({
     queryKey: ['SALES'],
     queryFn: async () => {
-      const response = await fetch(`${baseUrl()}/orders?orderStatus=pending`, { method: 'GET', headers: { 'Content-Type': 'Application/json' } })
+      const response = await fetch(`${baseUrl()}/orders?orderStatus=pending`, { 
+        method: 'GET', 
+        headers: { 'Content-Type': 'Application/json' } 
+      })
       if (!response.ok) throw new Error('Failed to fetch sales orders')
       return response.json()
     },
   })
 
-  const calculateTotalMaterials = (products: Product[]) => {
+  const calculateTotalPairs = (): number => {
+    if (activeTab === 'sales-orders' && selectedSalesOrder) {
+      const totalPairs = selectedSalesOrder.products.reduce((total, product) => total + Number(product.quantity), 0)
+      return totalPairs
+
+    }
+    const totalPairs = manufacturingData.items.reduce((total, item) => total + Number(item.quantity), 0)
+    return totalPairs
+  }
+
+  const calculateTotalMaterials = (products: Product[]): RawMaterialSummary[] => {
     const materialTotals = products.reduce((acc, product) => {
       product.rawMaterials.forEach(material => {
-        const totalNeeded = material.quantityPerUnit * product.quantity; // Calculate total needed for this product
-        const quantityAvailable = material.quantityAvailable; // Available quantity for this material
-  
+        const totalNeeded = material.quantityPerUnit * product.quantity
+        const quantityAvailable = material.quantityAvailable
+
         if (acc[material.rawMaterialId]) {
-          // Add to the existing total
-          acc[material.rawMaterialId].quantityNeeded += totalNeeded;
-  
-          // Update `quantityAvailable` to the minimum value
+          acc[material.rawMaterialId].quantityNeeded += totalNeeded
           acc[material.rawMaterialId].quantityAvailable = Math.min(
             acc[material.rawMaterialId].quantityAvailable,
             quantityAvailable
-          );
+          )
         } else {
-          // Initialize new entry
           acc[material.rawMaterialId] = {
             rawMaterialId: material.rawMaterialId,
             rawMaterialName: material.rawMaterialName,
             quantityNeeded: totalNeeded,
             quantityAvailable: quantityAvailable,
-          };
+          }
         }
-      });
-  
-      return acc;
-    }, {} as Record<number, {
-      rawMaterialId: number;
-      rawMaterialName: string;
-      quantityNeeded: number;
-      quantityAvailable: number;
-    }>);
-  
-    // Convert the result to an array (if required)
-    return Object.values(materialTotals);
-  };
-  
-  const handleSelectSalesOrder = async (salesOrder: SalesOrder) => {
+      })
+      return acc
+    }, {} as Record<number, RawMaterialSummary>)
+
+    return Object.values(materialTotals)
+  }
+
+  const calculateTotalCost = (): number => {
+    const totalPairs = calculateTotalPairs()
+    
+    const rawMaterialCost = activeTab === 'sales-orders' && selectedSalesOrder 
+      ? selectedSalesOrder.products.reduce((total, product) => {
+          const materialCost = product.rawMaterials.reduce((init, accum) => init + accum.materialCost, 0)
+          return total + (materialCost * product.quantity)
+        }, 0)
+      : manufacturingData.items.reduce((total, item) => {
+          const product = products.find(p => p.productId === item.productId)
+          return total + ((product?.cost || 0) * item.quantity)
+        }, 0)
+
+    const manufacturingCostTotal = (manufacturingCosts || [])
+      .filter(cost => productionCosts.some(pc => pc.id === cost.id))
+      .reduce((total, cost) => total + (cost.amount * totalPairs), 0)
+
+    const laborCost = activeTab === 'sales-orders' ? 0 : manufacturingData.laborCost
+
+    return rawMaterialCost + manufacturingCostTotal + laborCost
+  }
+
+  const handleSelectSalesOrder = async (salesOrder: SalesOrder): Promise<void> => {
     if (salesOrder.id) {
       setIsLoading(true)
       try {
         const response = await fetch(`${baseUrl()}/orders/${salesOrder.id}`, {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
+          headers: { 'Content-Type': 'application/json' }
+        })
         if (response.ok) {
-          const responseJson = await response.json() as SalesOrder;
+          const responseJson = await response.json() as SalesOrder
           setSelectedOrder(responseJson)
         }
       } catch (error) {
@@ -148,54 +212,10 @@ export default function AddManufacturingPage() {
     }
   }
 
-  const handleDateChange = (date: Date | undefined) => {
-    if (date) {
-      setManufacturingData(prev => ({ ...prev, date }))
-    }
-  }
-
-  const handleAddItem = () => {
-    setManufacturingData(prev => ({
-      ...prev,
-      items: [...prev.items, { productId: 0, quantity: 0, productName: '' }],
-    }))
-  }
-
-  const handleItemChange = (index: number, field: keyof ManufacturingItem, value: any) => {
-    setManufacturingData(prev => {
-      const newItems = [...prev.items]
-      newItems[index] = { ...newItems[index], [field]: value }
-      return { ...prev, items: newItems }
-    })
-  }
-
-  const handleRemoveItem = (index: number) => {
-    setManufacturingData(prev => ({
-      ...prev,
-      items: prev.items.filter((_, i) => i !== index),
-    }))
-  }
-
-  const handleLaborCostChange = (value: string) => {
-    setManufacturingData(prev => ({ ...prev, laborCost: parseFloat(value) }))
-  }
-
-  const calculateTotalCost = () => {
-    const itemsCost = manufacturingData.items.reduce((total, item) => {
-      const product = products.find(p => p.productId === item.productId)
-      return total + (product?.cost || 0) * item.quantity
-    }, 0)
-    return itemsCost + manufacturingData.laborCost
-  }
-
-  const handleUnselectSalesOrder = () => {
-    setSelectedOrder(undefined)
-    setManufacturingData(prev => ({ ...prev, items: [] }))
-  }
-
-  const handleSubmit = async () => {
+  const handleSubmit = async (): Promise<void> => {
     setLoading(true)
-    let saveInDb
+    
+    let saveInDb: ProductionPayload
     if (activeTab === 'sales-orders' && selectedSalesOrder) {
       const allRawMaterials = selectedSalesOrder.products.flatMap(product => product.rawMaterials)
       const storeRawMaterials = allRawMaterials.reduce((acc, rawMaterial) => {
@@ -211,13 +231,14 @@ export default function AddManufacturingPage() {
       saveInDb = {
         productionDate: new Date(),
         status: status,
-        orderType : 'sales', 
-        orderId : selectedSalesOrder.id,
+        orderType: 'sales', 
+        orderId: selectedSalesOrder.id,
+        productionCosts: productionCosts,
         products: selectedSalesOrder.products.map((product) => ({
           productId: product.productId,
           sizeId: product.sizeId,
           colorId: product.colorId,
-          unitCost : product.rawMaterials.reduce((init, accum) => (init + accum.materialCost), 0),
+          unitCost: product.rawMaterials.reduce((init, accum) => (init + accum.materialCost), 0),
           quantity: product.quantity,
         })),
         rawMaterials: storeRawMaterials.map((rawMaterial) => ({
@@ -229,6 +250,7 @@ export default function AddManufacturingPage() {
       saveInDb = {
         productionDate: manufacturingData.date,
         status: status,
+        orderType: 'custom',
         products: manufacturingData.items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -241,8 +263,9 @@ export default function AddManufacturingPage() {
       const response = await fetch(`${baseUrl()}/manufacturing`, {
         method: 'POST',
         body: JSON.stringify(saveInDb),
-        headers: { 'Content-Type': 'Application/json' }
+        headers: { 'Content-Type': 'application/json' }
       })
+      
       if (response.ok) {
         toast({
           title: "Production Added Successfully",
@@ -262,6 +285,14 @@ export default function AddManufacturingPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleAddProductionCost = (cost: ManufacturingCost): void => {
+    setProductionCosts(prev => 
+      prev.some(pc => pc.id === cost.id) 
+        ? prev.filter(pc => pc.id !== cost.id)
+        : [...prev, cost]
+    )
   }
 
   return (
@@ -286,7 +317,7 @@ export default function AddManufacturingPage() {
                           type="date"
                           id="manufacturingDate"
                           value={manufacturingData.date.toISOString().split('T')[0]}
-                          onChange={(e) => handleDateChange(new Date(e.target.value))}
+                          onChange={(e) => setManufacturingData(prev => ({ ...prev, date: new Date(e.target.value) }))}
                         />
                       </div>
                       <div className="flex-1">
@@ -304,7 +335,7 @@ export default function AddManufacturingPage() {
                         </Select>
                       </div>
                       {selectedSalesOrder && (
-                        <Button type="button" onClick={handleUnselectSalesOrder} variant="outline">
+                        <Button type="button" onClick={() => setSelectedOrder(undefined)} variant="outline">
                           <X className="mr-2 h-4 w-4" /> Unselect Sales Order
                         </Button>
                       )}
@@ -352,19 +383,46 @@ export default function AddManufacturingPage() {
                         </TableBody>
                       </Table>
                     </div>
-
-                    <div>
-                      <Label htmlFor="laborCost">Additional Labor Cost</Label>
-                      <Input
-                        id="laborCost"
-                        type="number"
-                        value={manufacturingData.laborCost}
-                        onChange={(e) => handleLaborCostChange(e.target.value)}
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
                   </form>
+                </CardContent>
+              </Card>
+
+              {/* Manufacturing Costs Section */}
+              <Card className="mt-8">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-bold">Manufacturing Costs</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Include</TableHead>
+                        <TableHead>Cost Name</TableHead>
+                        <TableHead>Amount Per Pair</TableHead>
+                        <TableHead>Total Cost</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {manufacturingCosts.map((cost) => {
+                        const totalPairs = calculateTotalPairs()
+                        const totalCost = cost.amount * totalPairs
+                        return (
+                          <TableRow key={cost.id}>
+                            <TableCell>
+                              <input 
+                                type="checkbox" 
+                                checked={productionCosts.some(pc => pc.id === cost.id)}
+                                onChange={() => handleAddProductionCost(cost)}
+                              />
+                            </TableCell>
+                            <TableCell>{cost.name}</TableCell>
+                            <TableCell>{formatCurrency(cost.amount)}</TableCell>
+                            <TableCell>{formatCurrency(totalCost)}</TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
 
@@ -400,7 +458,7 @@ export default function AddManufacturingPage() {
                             <TableRow key={material.rawMaterialId}>
                               <TableCell>{material.rawMaterialName}</TableCell>
                               <TableCell>{material.quantityNeeded.toFixed(2)}</TableCell>
-                              <TableCell>{material.quantityAvailable}</TableCell>
+                              <TableCell>{material.quantityAvailable.toFixed(2)}</TableCell>
                               <TableCell>
                                 {material.quantityAvailable >= material.quantityNeeded ? (
                                   <span className="text-green-600">Sufficient</span>
@@ -447,11 +505,10 @@ export default function AddManufacturingPage() {
               </ScrollArea>
             </CardContent>
           </Card>
-        </div>
-      </div>
-      </TabsContent>
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   )
 }
-

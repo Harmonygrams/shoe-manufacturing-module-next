@@ -2,7 +2,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { baseUrl } from "@/utils/baseUrl"
-import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 type ProductionProduct = {

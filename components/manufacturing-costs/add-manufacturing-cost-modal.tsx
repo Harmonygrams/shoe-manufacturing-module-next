@@ -47,6 +47,7 @@ export function AddManufacturingCostModal({ isOpen, onClose }: AddManufacturingC
         description: "Manufacturing cost added successfully.",
       })
       onClose()
+      window.location.reload()
     },
     onError: () => {
       toast({

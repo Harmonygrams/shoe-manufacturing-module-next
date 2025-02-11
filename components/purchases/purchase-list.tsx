@@ -6,7 +6,10 @@ import { formatCurrency } from '@/helpers/currencyFormat'
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { baseUrl } from '@/utils/baseUrl'
-import { useToast } from '@/hooks/use-toast'
+import { DeleteConfirmation } from '../delete-confirmation'
+import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { PurchaseDialog }  from './view-purchase'
 
 type Data = {
   id: string
@@ -32,8 +35,10 @@ export function PurchaseList({
   status?: string
   supplier?: string
 }) {
-  const { toast } = useToast()
-
+  const queryClient = useQueryClient()
+  const [deleteDialogIsOpen, setDeleteDialogIsOpen] = useState<boolean>(false); 
+  const [selectedPurchaseId, setSelectedPurchaseId] = useState<string>('')
+  const [showPurchase, setShowPurchase] = useState<boolean>(false)
   const fetchPurchases = async ({ pageParam = '' }): Promise<Page> => {
     const params = new URLSearchParams({ cursor: pageParam })
     if (date) params.append('date', date)
@@ -64,32 +69,13 @@ export function PurchaseList({
   })
 
   const handleDelete = async (id: string) => {
-    try {
-      const response = await fetch(`${baseUrl()}/purchases/${id}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete purchase')
-      }
-
-      toast({
-        title: "Purchase deleted",
-        description: "The purchase has been successfully deleted.",
-      })
-
-      // Optionally, you can invalidate the query to refetch the data
-      // queryClient.invalidateQueries(['purchases'])
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete the purchase. Please try again.",
-        variant: "destructive",
-      })
-    }
+    setDeleteDialogIsOpen(true); 
+    setSelectedPurchaseId(id); 
   }
-
+  const handleViewPurchase = async (id : string) => {
+    setSelectedPurchaseId(id)
+    setShowPurchase(true)
+  }
   if (queryStatus === 'loading') return <div>Loading...</div>
   if (queryStatus === 'error') return <div>Error fetching purchases</div>
 
@@ -114,13 +100,11 @@ export function PurchaseList({
                 <TableCell>{purchase.supplier.name}</TableCell>
                 <TableCell>{new Date(purchase.date).toDateString()}</TableCell>
                 <TableCell>{purchase.materialCount}</TableCell>
-                <TableCell>{formatCurrency(purchase.totalCost)}</TableCell>
+                <TableCell>{formatCurrency(purchase.totalCost * purchase.materialCount)}</TableCell> 
                 <TableCell>
                   <div className="flex space-x-2">
-                    <Link href={`/purchases/${purchase.id}`}>
-                      <Button variant="outline" size="sm">View</Button>
-                    </Link>
-                    <Link href={`/purchases/${purchase.id}/edit`}>
+                    <Button variant="outline" size="sm" onClick={() => handleViewPurchase(purchase.id)}>View</Button>
+                    <Link href={`/purchases/edit/${purchase.id}`}>
                       <Button variant="outline" size="sm">Edit</Button>
                     </Link>
                     <Button variant="outline" size="sm" onClick={() => handleDelete(purchase.id)}>Delete</Button>
@@ -141,7 +125,24 @@ export function PurchaseList({
           </Button>
         </div>
       )}
+     {showPurchase && <PurchaseDialog 
+        onClose={() => {
+          setShowPurchase(false)
+        }}
+        id = {selectedPurchaseId}
+      />}
+      <DeleteConfirmation 
+        isOpen = {deleteDialogIsOpen}
+        segment={'purchases'}
+        itemId={selectedPurchaseId}
+        onClose={() => {
+          setDeleteDialogIsOpen(false);
+          setSelectedPurchaseId('');
+        }}
+        onDeleteSuccess={() => {
+          window.location.reload()
+        }}
+      />
     </div>
   )
 }
-

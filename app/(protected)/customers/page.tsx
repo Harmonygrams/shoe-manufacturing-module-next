@@ -53,7 +53,7 @@ export default function CustomersPage() {
         <h1 className="text-3xl font-bold">Customers</h1>
         <CustomerDetailsDialog />
       </div>
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
+      <div className="mb-6 flex flex-col sm:flex-row gap-4 w-[250px]">
         <div className="relative flex-grow">
           <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <Input
@@ -63,16 +63,6 @@ export default function CustomersPage() {
             className="pl-10"
           />
         </div>
-        <Select onValueChange={setFilter}>
-          <SelectTrigger className="w-full sm:w-[200px]">
-            <SelectValue placeholder="Filter customers" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Customers</SelectItem>
-            <SelectItem value="outstanding">Outstanding Balance</SelectItem>
-            <SelectItem value="recent">Recent Customers</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="overflow-x-auto">
