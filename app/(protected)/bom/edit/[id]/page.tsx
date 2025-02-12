@@ -280,7 +280,7 @@ export default function EditBomPage() {
       setSelectedProduct(productId)
       setBomId(id)
     }
-  }, [bomData])
+  }, [bomData, getTotalCost])
 
   useEffect(() => {
     if (isProductsSuccess && productsData) {
@@ -294,7 +294,7 @@ export default function EditBomPage() {
   useEffect(() => {
     const totalCost = getTotalCost()
     setTotalCost(totalCost)
-  }, [bomList])
+  }, [bomList, getTotalCost])
 
   if (isBomLoading) {
     return (

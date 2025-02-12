@@ -63,7 +63,7 @@ export default function UnitsPage() {
     if (isSuccess) {
       setUnits(data)
     }
-  }, [isLoading, isSuccess])
+  }, [isLoading, isSuccess, data])
 
   const handleEditClick = (unit: Unit) => {
     setSelectedUnit(unit)

@@ -128,7 +128,7 @@ export default function EditMaterialSheet({ materialId, isOpen, onOpenChange, tr
         <SheetHeader>
           <SheetTitle>Edit Material</SheetTitle>
           <SheetDescription>
-            Update the material details below. Click save when you're done.
+            Update the material details below. Click save when you&apos;re done.
           </SheetDescription>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">

@@ -85,7 +85,7 @@ export default function SizesPage() {
     if(isSuccess){
       setSizes(data)
     }
-  }, [isLoading, isSuccess])
+  }, [isLoading, isSuccess, data])
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">Size</h1>

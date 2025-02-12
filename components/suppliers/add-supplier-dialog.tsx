@@ -45,7 +45,7 @@ export default function SupplierDetailsDialog() {
         <SheetHeader>
           <SheetTitle>Add Supplier Details</SheetTitle>
           <SheetDescription>
-            Add a new supplier to your database. Click save when you're done.
+            Add a new supplier to your database. Click save when you&apos;re done.
           </SheetDescription>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-6 pt-6 pb-16">

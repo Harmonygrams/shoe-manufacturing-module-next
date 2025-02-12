@@ -75,7 +75,7 @@ export default function EditUnitSheet({ unitData, setIsOpen }: EditUnitSheetProp
                 <SheetHeader>
                     <SheetTitle>Edit Unit</SheetTitle>
                     <SheetDescription>
-                        Update the details of the unit. Click save when you're done.
+                        Update the details of the unit. Click save when you&apos;re done.
                     </SheetDescription>
                 </SheetHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">

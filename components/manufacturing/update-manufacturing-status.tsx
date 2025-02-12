@@ -128,7 +128,7 @@ export function UpdateProductionDialog({ productionId, isOpen, onClose }: Update
           break;
       }
     }
-  }, [isLoading, isSuccess])
+  }, [isLoading, isSuccess, production?.status])
   return (
     <Dialog
       open={isOpen}

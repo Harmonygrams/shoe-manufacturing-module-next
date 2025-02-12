@@ -96,7 +96,7 @@ console.log('the supplie id is ', supplierId)
         <SheetHeader>
           <SheetTitle>Edit Supplier Details</SheetTitle>
           <SheetDescription>
-            Update the supplier details below. Click save when you're done.
+            Update the supplier details below. Click save when you&apos;re done.
           </SheetDescription>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-6 pt-6 pb-16">

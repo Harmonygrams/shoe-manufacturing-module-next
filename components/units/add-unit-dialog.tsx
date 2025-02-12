@@ -64,7 +64,7 @@ export default function AddUnitSheet() {
         <SheetHeader>
           <SheetTitle>Add New Unit</SheetTitle>
           <SheetDescription>
-            Fill in the details of the new unit. Click save when you're done.
+            Fill in the details of the new unit. Click save when you&apos;re done.
           </SheetDescription>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">

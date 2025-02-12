@@ -122,7 +122,7 @@ export default function AddMaterialSheet() {
         <SheetHeader>
           <SheetTitle>Add New Material</SheetTitle>
           <SheetDescription>
-            Fill in the details of the new material. Click save when you're done.
+            Fill in the details of the new material. Click save when you&apos;re done.
           </SheetDescription>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">

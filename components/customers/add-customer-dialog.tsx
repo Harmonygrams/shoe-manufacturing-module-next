@@ -45,7 +45,7 @@ export default function CustomerDetailsDialog() {
         <SheetHeader>
           <SheetTitle>Add Customer Details</SheetTitle>
           <SheetDescription>
-            Add a new customer to your database. Click save when you're done.
+            Add a new customer to your database. Click save when you&apos;re done.
           </SheetDescription>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-6 pt-6 pb-16">
